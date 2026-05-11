@@ -172,8 +172,8 @@ export default function Home() {
     <main style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
       <h1>Registrierkassa POS</h1>
       
-      <div style={{ display: 'flex', gap: '2rem', marginTop: '2rem' }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginTop: '2rem' }}>
+        <div style={{ flex: '1 1 350px' }}>
           <h3>Add Templates</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {templates.map((tpl, i) => (
@@ -210,7 +210,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{ flex: 1, background: '#f9f9f9', padding: '1rem', borderRadius: '8px' }}>
+        <div style={{ flex: '1 1 350px', background: '#f9f9f9', padding: '1rem', borderRadius: '8px' }}>
           <h3>Current Cart</h3>
           {items.length === 0 ? <p>Empty</p> : (
             <ul style={{ listStyle: 'none', padding: 0 }}>

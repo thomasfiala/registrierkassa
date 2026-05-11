@@ -7,10 +7,14 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
   return new Promise(async (resolve, reject) => {
     try {
       const config = getConfig();
-      const doc = new PDFDocument({ margin: 50 });
+      const doc = new PDFDocument({ margin: 50, size: 'A4' });
       const stream = fs.createWriteStream(outputPath);
       doc.pipe(stream);
       
+      const pageWidth = doc.page.width;
+      const pageHeight = doc.page.height;
+      const contentWidth = pageWidth - 100;
+
       doc.fontSize(20).text(config.business.name, { align: 'right' });
       doc.fontSize(10).text(`UID: ${config.business.uid}`, { align: 'right' });
       doc.text(config.business.address, { align: 'right' });
@@ -18,7 +22,7 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
       
       if (receiptData.customerNameAndAddress) {
         doc.fontSize(10).text(receiptData.customerNameAndAddress);
-        doc.moveDown(1);
+        doc.moveDown(2);
       }
 
       let headerText = receiptData.type === 'proforma' ? config.invoiceTexts.proformaHeader : config.invoiceTexts.header;
@@ -29,7 +33,7 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
       doc.fontSize(16).text(headerText);
       const belegY = doc.y;
       doc.fontSize(10).text(`Belegnummer: ${receiptData.receiptNumber}`, 50, belegY);
-      doc.text(`Datum: ${new Date(receiptData.date).toLocaleString('de-AT')}`, 50, belegY, { align: 'right', width: 430 });
+      doc.text(`Datum: ${new Date(receiptData.date).toLocaleString('de-AT')}`, 50, belegY, { align: 'right', width: contentWidth });
       doc.y = belegY + 15;
       
       if (receiptData.isStorno) {
@@ -41,12 +45,12 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
       let y = doc.y;
       // Header row
       doc.fontSize(10).text("Menge", 50, y, { width: 40 });
-      doc.text("Bezeichnung", 100, y, { width: 170 });
-      doc.text("MWSt.", 270, y, { width: 50 });
-      doc.text("Preis", 320, y, { width: 80, align: 'right' });
-      doc.text("Gesamt", 400, y, { width: 80, align: 'right' });
+      doc.text("Bezeichnung", 100, y, { width: 200 });
+      doc.text("USt.", 300, y, { width: 40 });
+      doc.text("Preis", 340, y, { width: 90, align: 'right' });
+      doc.text("Gesamt", 430, y, { width: 115, align: 'right' });
       y += 15;
-      doc.moveTo(50, y).lineTo(480, y).stroke();
+      doc.moveTo(50, y).lineTo(545, y).stroke();
       y += 10;
 
       const taxes: Record<string, number> = {};
@@ -63,23 +67,23 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
         }
 
         doc.text(`${qty}`, 50, y, { width: 40 });
-        doc.text(`${item.name}`, 100, y, { width: 170 });
-        doc.text(rateStr, 270, y, { width: 50 });
-        doc.text(`€ ${item.price.toFixed(2)}`, 320, y, { width: 80, align: 'right' });
-        doc.text(`€ ${total.toFixed(2)}`, 400, y, { width: 80, align: 'right' });
+        doc.text(`${item.name}`, 100, y, { width: 200 });
+        doc.text(rateStr, 300, y, { width: 40 });
+        doc.text(`€ ${item.price.toFixed(2)}`, 340, y, { width: 90, align: 'right' });
+        doc.text(`€ ${total.toFixed(2)}`, 430, y, { width: 115, align: 'right' });
         y += 15;
       });
       doc.y = y + 20;
-      doc.moveTo(250, doc.y).lineTo(480, doc.y).stroke();
+      doc.moveTo(340, doc.y).lineTo(545, doc.y).stroke();
       doc.y += 10;
       
-      doc.fontSize(14).text(`Gesamtbetrag: € ${receiptData.totalAmount.toFixed(2)}`, 50, doc.y, { align: 'right', width: 430 });
+      doc.fontSize(14).text(`Gesamtbetrag: € ${receiptData.totalAmount.toFixed(2)}`, 50, doc.y, { align: 'right', width: contentWidth });
       doc.y += 15;
       
       doc.fontSize(10);
       Object.keys(taxes).forEach(rate => {
           if (taxes[rate] > 0) {
-              doc.text(`darin enthalten ${rate} USt: € ${taxes[rate].toFixed(2)}`, 50, doc.y, { align: 'right', width: 430 });
+              doc.text(`darin enthalten ${rate} USt: € ${taxes[rate].toFixed(2)}`, 50, doc.y, { align: 'right', width: contentWidth });
               doc.y += 15;
           }
       });
@@ -97,20 +101,20 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
 
       doc.moveDown(1);
       if (config.invoiceTexts.footer) {
-          doc.text(config.invoiceTexts.footer, 50, doc.y, { align: 'center', width: 430 });
-          doc.moveDown(1);
-      }
-      if (config.invoiceTexts.bottomFooter) {
-          doc.text(config.invoiceTexts.bottomFooter, 50, doc.y, { align: 'center', width: 430 });
+          doc.text(config.invoiceTexts.footer, 50, doc.y, { align: 'left', width: contentWidth });
           doc.moveDown(1);
       }
 
       if (receiptData.type === 'final' && receiptData.rksv?.jws && !receiptData.isProformaPreview) {
         doc.moveDown(1);
-        doc.text('Maschinenlesbarer Code (RKSV):', 50, doc.y, { align: 'center', width: 430 });
+        doc.text('Maschinenlesbarer Code (RKSV):', 50, doc.y, { align: 'center', width: contentWidth });
         const qrBuffer = await QRCode.toBuffer(receiptData.rksv.jws, { errorCorrectionLevel: 'M', margin: 2 });
         const qrSize = 120;
-        doc.image(qrBuffer, (doc.page.width - qrSize) / 2, doc.y + 10, { width: qrSize });
+        doc.image(qrBuffer, (pageWidth - qrSize) / 2, doc.y + 10, { width: qrSize });
+      }
+
+      if (config.invoiceTexts.bottomFooter) {
+          doc.fontSize(9).text(config.invoiceTexts.bottomFooter, 50, pageHeight - 70, { align: 'center', width: contentWidth });
       }
 
       doc.end();

@@ -5,6 +5,17 @@
     "remote": "origin",
     "branch": "main"
   },
+  "emailSettings": {
+    "host": "smtp.example.com",
+    "port": 587,
+    "user": "user@example.com",
+    "pass": "yourpassword",
+    "from": "user@example.com"
+  },
+  "emailTexts": {
+    "subject": "Ihre Rechnung",
+    "body": "Anbei erhalten Sie Ihre Rechnung als PDF-Dokument.\n\nMit freundlichen Grüßen,\nYour Business Name"
+  },
   "business": {
     "name": "Your Business Name",
     "address": "Musterstraße 1, 1010 Wien",

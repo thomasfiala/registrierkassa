@@ -6,7 +6,9 @@ export async function GET() {
     const config = getConfig();
     return NextResponse.json({
       itemTemplates: config.itemTemplates || [],
-      business: config.business
+      business: config.business,
+      invoiceTexts: config.invoiceTexts || {},
+      emailTexts: config.emailTexts || {}
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

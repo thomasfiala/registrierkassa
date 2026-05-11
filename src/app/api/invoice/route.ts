@@ -33,6 +33,7 @@ export async function POST(request: Request) {
         totalAmount,
         type: body.type || 'final',
         customerNameAndAddress: body.customerNameAndAddress,
+        customerEmail: body.customerEmail,
         customMessage: body.customMessage,
         paymentMethod: body.paymentMethod,
         isProformaPreview: true
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
       totalAmount,
       type: body.type || 'final',
       customerNameAndAddress: body.customerNameAndAddress,
+      customerEmail: body.customerEmail,
       customMessage: body.customMessage,
       paymentMethod: body.paymentMethod,
       isStorno,

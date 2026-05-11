@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 
 type Item = { name: string; price: number; taxRate: string; id: number; quantity: number };
 type Template = { name: string; price: number; taxRate: string };
-type Receipt = { id: string; receiptNumber: string; date: string; type: string; totalAmount: number; customerNameAndAddress?: string; isStorno?: boolean; stornoed?: boolean; stornoRef?: string; items: any[] };
+type Receipt = { id: string; receiptNumber: string; date: string; type: string; totalAmount: number; customerNameAndAddress?: string; customerEmail?: string; isStorno?: boolean; stornoed?: boolean; stornoRef?: string; items: any[] };
 
 export default function Home() {
   const [items, setItems] = useState<Item[]>([]);
@@ -14,8 +14,10 @@ export default function Home() {
   const [customPrice, setCustomPrice] = useState('');
   const [customTax, setCustomTax] = useState('20%');
   const [customerInfo, setCustomerInfo] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('bar');
+  const [emailTexts, setEmailTexts] = useState({ subject: '', body: '' });
   
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [search, setSearch] = useState('');
@@ -23,10 +25,13 @@ export default function Home() {
   const [sortDesc, setSortDesc] = useState(true);
   const [fromProformaId, setFromProformaId] = useState<string | undefined>(undefined);
 
+  const [emailModal, setEmailModal] = useState<{ open: boolean; receiptNumber: string; to: string; subject: string; text: string; status: string }>({ open: false, receiptNumber: '', to: '', subject: '', text: '', status: '' });
+
   useEffect(() => {
     fetch('/api/config').then(res => res.json()).then(data => {
       if (data.itemTemplates) setTemplates(data.itemTemplates);
       if (data.invoiceTexts?.customMessageDefault) setCustomMessage(data.invoiceTexts.customMessageDefault);
+      if (data.emailTexts) setEmailTexts(data.emailTexts);
     });
     loadReceipts();
   }, []);
@@ -75,7 +80,7 @@ export default function Home() {
     const res = await fetch('/api/invoice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, type, customerNameAndAddress: customerInfo, customMessage, paymentMethod, fromProformaId })
+      body: JSON.stringify({ items, type, customerNameAndAddress: customerInfo, customerEmail, customMessage, paymentMethod, fromProformaId })
     });
     
     const data = await res.json();
@@ -83,6 +88,7 @@ export default function Home() {
       setStatus(`Success! Created ${data.receipt.receiptNumber}`);
       setItems([]);
       setCustomerInfo('');
+      setCustomerEmail('');
       setFromProformaId(undefined);
       loadReceipts();
     } else {
@@ -99,7 +105,7 @@ export default function Home() {
     const res = await fetch('/api/invoice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, type, customerNameAndAddress: customerInfo, customMessage, paymentMethod, isPreview: true })
+      body: JSON.stringify({ items, type, customerNameAndAddress: customerInfo, customerEmail, customMessage, paymentMethod, isPreview: true })
     });
     if (res.ok) {
       const blob = await res.blob();
@@ -114,6 +120,7 @@ export default function Home() {
   const handleLoadProforma = (r: Receipt) => {
     setItems(r.items.map((i: any) => ({...i, id: Date.now() + Math.random()})));
     setCustomerInfo(r.customerNameAndAddress || '');
+    setCustomerEmail(r.customerEmail || '');
     setType('final');
     setFromProformaId(r.id);
     setStatus(`Loaded Proforma ${r.receiptNumber}. You can now save it as a final invoice.`);
@@ -152,6 +159,40 @@ export default function Home() {
     if (res.ok) {
       setStatus(`Nullbeleg created.`);
       loadReceipts();
+    }
+  };
+
+  const openEmailModal = (r: Receipt) => {
+    const salutation = r.customerNameAndAddress ? r.customerNameAndAddress.split('\n')[0] : 'Kunde';
+    const defaultSubject = emailTexts.subject ? `${emailTexts.subject} ${r.receiptNumber} (${new Date(r.date).toLocaleDateString('de-AT')})` : `Rechnung ${r.receiptNumber}`;
+    const defaultBody = `Hallo ${salutation},\n\n${emailTexts.body || 'anbei finden Sie Ihre Rechnung.'}`;
+    setEmailModal({
+      open: true,
+      receiptNumber: r.receiptNumber,
+      to: r.customerEmail || '',
+      subject: defaultSubject,
+      text: defaultBody,
+      status: ''
+    });
+  };
+
+  const sendEmail = async () => {
+    setEmailModal({ ...emailModal, status: 'Sending...' });
+    const res = await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        receiptNumber: emailModal.receiptNumber,
+        to: emailModal.to,
+        subject: emailModal.subject,
+        text: emailModal.text
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      setEmailModal({ ...emailModal, status: 'Sent successfully!', open: false });
+    } else {
+      setEmailModal({ ...emailModal, status: `Error: ${data.error}` });
     }
   };
 
@@ -197,7 +238,8 @@ export default function Home() {
           </div>
 
           <h3 style={{ marginTop: '2rem' }}>Customer & Settings</h3>
-          <textarea placeholder="Customer Name and Address" value={customerInfo} onChange={e => setCustomerInfo(e.target.value)} style={{ width: '100%', height: '80px', padding: '0.5rem', marginBottom: '1rem' }} />
+          <textarea placeholder="Customer Name and Address" value={customerInfo} onChange={e => setCustomerInfo(e.target.value)} style={{ width: '100%', height: '80px', padding: '0.5rem', marginBottom: '0.5rem' }} />
+          <input type="email" placeholder="Customer E-Mail" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem' }} />
           <textarea placeholder="Custom message (below table)" value={customMessage} onChange={e => setCustomMessage(e.target.value)} style={{ width: '100%', height: '60px', padding: '0.5rem', marginBottom: '1rem' }} />
           <div>
             <strong>Zahlungsmittel: </strong>
@@ -271,17 +313,36 @@ export default function Home() {
                 <td style={{ padding: '0.5rem' }}>{r.type}</td>
                 <td style={{ padding: '0.5rem' }}>{r.customerNameAndAddress?.split('\n')[0] || '-'}</td>
                 <td style={{ padding: '0.5rem' }}>€ {r.totalAmount.toFixed(2)}</td>
-                <td style={{ padding: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                <td style={{ padding: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <a href={`/api/pdf?file=${r.receiptNumber}.pdf`} target="_blank" rel="noreferrer" style={{ color: 'blue' }}>PDF</a>
                   {r.type === 'proforma' && <button onClick={() => handleLoadProforma(r)}>Load</button>}
                   {r.type === 'proforma' && <button onClick={() => handleDeleteProforma(r.id)}>Del</button>}
                   {r.type === 'final' && !r.isStorno && !r.stornoed && <button onClick={() => handleStorno(r)}>Storno</button>}
+                  {r.type === 'final' && !r.isStorno && <button onClick={() => openEmailModal(r)}>Send E-mail</button>}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {emailModal.open && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '100%', maxWidth: '500px' }}>
+            <h3>Send E-mail for {emailModal.receiptNumber}</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <input type="email" placeholder="To" value={emailModal.to} onChange={e => setEmailModal({ ...emailModal, to: e.target.value })} style={{ padding: '0.5rem' }} />
+              <input type="text" placeholder="Subject" value={emailModal.subject} onChange={e => setEmailModal({ ...emailModal, subject: e.target.value })} style={{ padding: '0.5rem' }} />
+              <textarea placeholder="Body" value={emailModal.text} onChange={e => setEmailModal({ ...emailModal, text: e.target.value })} style={{ padding: '0.5rem', height: '150px' }} />
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button onClick={() => setEmailModal({ ...emailModal, open: false })} style={{ padding: '0.5rem 1rem', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={sendEmail} style={{ padding: '0.5rem 1rem', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Send</button>
+              </div>
+              {emailModal.status && <p style={{ color: emailModal.status.startsWith('Error') ? 'red' : 'green' }}>{emailModal.status}</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

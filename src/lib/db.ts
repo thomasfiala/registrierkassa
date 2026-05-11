@@ -77,7 +77,7 @@ export async function commitReceipt(receiptData: any, pdfPath: string | undefine
   
   // If it's a new proforma saved as final, delete old proforma
   if (receiptData.fromProformaId) {
-    db.receipts = db.receipts.filter((r: any) => r.id !== receiptData.fromProformaId);
+    // Proformas are no longer automatically deleted.
     delete receiptData.fromProformaId;
   }
 

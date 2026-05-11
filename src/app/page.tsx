@@ -272,10 +272,16 @@ export default function Home() {
 
           <div style={{ marginTop: '2rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Invoice Type</label>
-            <select value={type} onChange={e => setType(e.target.value)} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem' }}>
-              <option value="final">Final Invoice</option>
-              <option value="proforma">Proforma</option>
-            </select>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+              <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input type="radio" name="invoiceType" value="final" checked={type === 'final'} onChange={e => setType(e.target.value)} />
+                Final Invoice
+              </label>
+              <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input type="radio" name="invoiceType" value="proforma" checked={type === 'proforma'} onChange={e => setType(e.target.value)} />
+                Proforma
+              </label>
+            </div>
 
             <div style={{ display: 'flex', gap: '1rem' }}>
                <button onClick={handlePreview} style={{ flex: 1, padding: '1rem', background: '#ccc', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Preview</button>
@@ -318,7 +324,7 @@ export default function Home() {
                   {r.type === 'proforma' && <button onClick={() => handleLoadProforma(r)}>Load</button>}
                   {r.type === 'proforma' && <button onClick={() => handleDeleteProforma(r.id)}>Del</button>}
                   {r.type === 'final' && !r.isStorno && !r.stornoed && <button onClick={() => handleStorno(r)}>Storno</button>}
-                  {r.type === 'final' && !r.isStorno && <button onClick={() => openEmailModal(r)}>Send E-mail</button>}
+                  {!r.isStorno && <button onClick={() => openEmailModal(r)}>Send E-mail</button>}
                 </td>
               </tr>
             ))}

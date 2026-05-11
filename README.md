@@ -32,6 +32,25 @@ Edit `config.json` to include:
 ### 3. Database Initialization
 You do not need to manually create the database. The system will read the `dbGitRepoPath` from your `config.json` (defaults to `../registrierkassa-db`), create the directory, inject `db.template.json`, and run `git init` automatically on the first transaction.
 
+### 4. Git Backup Integration (Optional)
+To ensure your receipts and database are safe against hardware failures, the app can automatically push every new receipt (git commit) to a remote Git repository (like GitHub or GitLab).
+
+1. In your `config.json`, enable the feature:
+   ```json
+   "gitBackup": {
+     "enabled": true,
+     "remote": "origin",
+     "branch": "main"
+   }
+   ```
+2. Manually add the remote to your database repository once. By default, this is in the `~/.registrierkassa/db` folder:
+   ```bash
+   cd ~/.registrierkassa/db
+   git remote add origin git@github.com:yourusername/registrierkassa-db-backup.git
+   ```
+
+*(Errors during the git push are caught and logged so the app will not crash if you are temporarily offline.)*
+
 ## 🖥 Usage
 
 ### Starting the Web UI (POS Terminal)

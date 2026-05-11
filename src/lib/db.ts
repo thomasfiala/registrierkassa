@@ -35,6 +35,7 @@ export async function initDbRepo() {
     }
     await git.add('.');
     await git.commit('Initial database setup');
+    await pushIfEnabled(git);
   }
 }
 
@@ -48,6 +49,20 @@ export async function writeDb(db: any) {
   const dbRepo = await getDbPath();
   const dbFile = path.join(dbRepo, 'db.json');
   fs.writeFileSync(dbFile, JSON.stringify(db, null, 2));
+}
+
+async function pushIfEnabled(git: any) {
+  try {
+    const config = getConfig();
+    if (config.gitBackup?.enabled) {
+      const remote = config.gitBackup.remote || 'origin';
+      const branch = config.gitBackup.branch || 'main';
+      console.log(`Pushing database to ${remote}/${branch}...`);
+      await git.push(remote, branch);
+    }
+  } catch (error) {
+    console.error('Failed to push database to git backup remote:', error);
+  }
 }
 
 export async function commitReceipt(receiptData: any, pdfPath: string | undefined, newHash: string | undefined) {
@@ -81,6 +96,7 @@ export async function commitReceipt(receiptData: any, pdfPath: string | undefine
   if (pdfPath && fs.existsSync(pdfPath)) await git.add(pdfPath);
   
   await git.commit(`Receipt ${receiptData.receiptNumber}${receiptData.type === 'proforma' ? ' (Proforma)' : ''}`);
+  await pushIfEnabled(git);
   return true;
 }
 
@@ -115,4 +131,5 @@ export async function deleteProforma(id: string) {
       await git.add(pdfPath);
   }
   await git.commit(`Deleted Proforma ${receipt.receiptNumber}`);
+  await pushIfEnabled(git);
 }

@@ -1,5 +1,10 @@
 {
   "dbGitRepoPath": "../registrierkassa-db",
+  "gitBackup": {
+    "enabled": false,
+    "remote": "origin",
+    "branch": "main"
+  },
   "business": {
     "name": "Your Business Name",
     "address": "Musterstraße 1, 1010 Wien",

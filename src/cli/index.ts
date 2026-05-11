@@ -133,6 +133,7 @@ async function setup() {
     }
     
     console.log("✅ Setup completed successfully!");
+    console.log("ℹ️ If you want to enable automatic Git backups for your DB, check the gitBackup section in your config and README.md.");
   } catch (error) {
     console.error(`❌ Setup failed:`, error);
   }

@@ -28,6 +28,7 @@ Edit `config.json` to include:
 - `invoiceTexts`: Standard text snippets used on the generated PDFs. Added custom defaults!
 - `itemTemplates`: Predefined POS items with prices and Austrian tax rates (20%, 13%, 10%, 0%).
 - `paymentMethods`: Configure available payment methods. You can optionally add a percentage fee (`feePercentage`) and its corresponding tax rate (`feeTaxRate`). If configured, selecting this payment method will automatically add the fee to the invoice total.
+- `sepa`: If configured with your IBAN, BIC, and Recipient Name, the system will automatically print an EPC SEPA QR code on the invoice PDF whenever the payment method "Überweisung" is selected.
 - `rksv`: Your Kassen-ID and AES-256 key for the encrypted turnover counter.
 
 ### 3. Database Initialization

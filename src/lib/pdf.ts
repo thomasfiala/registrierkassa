@@ -80,7 +80,7 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
       const summaryY = doc.y;
 
       let sepaHeight = 0;
-      if (config.sepa && config.sepa.iban) {
+      if (config.sepa && config.sepa.iban && receiptData.paymentMethod === 'Überweisung') {
         const sepaString = `BCD\n002\n1\nSCT\n${config.sepa.bic || ''}\n${config.sepa.recipientName}\n${config.sepa.iban}\nEUR${receiptData.totalAmount.toFixed(2)}\n\n\n${receiptData.receiptNumber}`;
         const sepaBuffer = await QRCode.toBuffer(sepaString, { errorCorrectionLevel: 'M', margin: 1 });
         doc.fontSize(8).text('QR-Code für SEPA Überweisung', 50, summaryY);

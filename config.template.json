@@ -16,6 +16,11 @@
     "subject": "Ihre Rechnung",
     "body": "Anbei erhalten Sie Ihre Rechnung als PDF-Dokument.\n\nMit freundlichen Grüßen,\nYour Business Name"
   },
+  "sepa": {
+    "iban": "AT000000000000000000",
+    "bic": "",
+    "recipientName": "Your Business Name"
+  },
   "business": {
     "name": "Your Business Name",
     "address": "Musterstraße 1, 1010 Wien",

@@ -77,16 +77,29 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
       doc.moveTo(340, doc.y).lineTo(545, doc.y).stroke();
       doc.y += 10;
       
-      doc.fontSize(14).text(`Gesamtbetrag: € ${receiptData.totalAmount.toFixed(2)}`, 50, doc.y, { align: 'right', width: contentWidth });
-      doc.y += 15;
+      const summaryY = doc.y;
+
+      let sepaHeight = 0;
+      if (config.sepa && config.sepa.iban) {
+        const sepaString = `BCD\n002\n1\nSCT\n${config.sepa.bic || ''}\n${config.sepa.recipientName}\n${config.sepa.iban}\nEUR${receiptData.totalAmount.toFixed(2)}\n\n\n${receiptData.receiptNumber}`;
+        const sepaBuffer = await QRCode.toBuffer(sepaString, { errorCorrectionLevel: 'M', margin: 1 });
+        doc.fontSize(8).text('QR-Code für SEPA Überweisung', 50, summaryY);
+        doc.image(sepaBuffer, 50, summaryY + 12, { width: 80 });
+        sepaHeight = 100; // text + image
+      }
+
+      doc.fontSize(14).text(`Gesamtbetrag: € ${receiptData.totalAmount.toFixed(2)}`, 50, summaryY, { align: 'right', width: contentWidth });
+      let currentRightY = summaryY + 18;
       
       doc.fontSize(10);
       Object.keys(taxes).forEach(rate => {
           if (taxes[rate] > 0) {
-              doc.text(`darin enthalten ${rate} USt: € ${taxes[rate].toFixed(2)}`, 50, doc.y, { align: 'right', width: contentWidth });
-              doc.y += 15;
+              doc.text(`darin enthalten ${rate} USt: € ${taxes[rate].toFixed(2)}`, 50, currentRightY, { align: 'right', width: contentWidth });
+              currentRightY += 15;
           }
       });
+      
+      doc.y = Math.max(summaryY + sepaHeight, currentRightY);
       doc.moveDown(1);
       
       if (receiptData.paymentMethod) {

@@ -292,11 +292,29 @@ export default function Home() {
           <textarea placeholder="Customer Name and Address" value={customerInfo} onChange={e => setCustomerInfo(e.target.value)} style={{ width: '100%', height: '80px', padding: '0.5rem', marginBottom: '0.5rem' }} />
           <input type="email" placeholder="Customer E-Mail" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem' }} />
           <textarea placeholder="Custom message (below table)" value={customMessage} onChange={e => setCustomMessage(e.target.value)} style={{ width: '100%', height: '60px', padding: '0.5rem', marginBottom: '1rem' }} />
-          <div>
-            <strong>Zahlungsmittel: </strong>
+          <div style={{ display: 'flex', background: '#eee', borderRadius: '8px', padding: '0.25rem', marginBottom: '1rem' }}>
             {paymentMethodsData.map(method => (
-              <label key={method.name} style={{ marginRight: '1rem', cursor: 'pointer' }}>
-                <input type="radio" name="paymentMethod" value={method.name} checked={paymentMethod === method.name} onChange={() => setPaymentMethod(method.name)} style={{ marginRight: '0.2rem' }} />
+              <label 
+                key={method.name} 
+                style={{ 
+                  flex: 1, 
+                  textAlign: 'center', 
+                  padding: '0.5rem', 
+                  cursor: 'pointer',
+                  background: paymentMethod === method.name ? 'white' : 'transparent',
+                  boxShadow: paymentMethod === method.name ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <input 
+                  type="radio" 
+                  name="paymentMethod" 
+                  value={method.name} 
+                  checked={paymentMethod === method.name} 
+                  onChange={() => setPaymentMethod(method.name)} 
+                  style={{ display: 'none' }} 
+                />
                 {method.name} {method.feePercentage ? `(+${method.feePercentage}%)` : ''}
               </label>
             ))}
@@ -326,14 +344,49 @@ export default function Home() {
           </div>
 
           <div style={{ marginTop: '2rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Invoice Type</label>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-              <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input type="radio" name="invoiceType" value="final" checked={type === 'final'} onChange={e => setType(e.target.value)} />
+            <div style={{ display: 'flex', background: '#eee', borderRadius: '8px', padding: '0.25rem', marginBottom: '1rem' }}>
+              <label 
+                style={{ 
+                  flex: 1, 
+                  textAlign: 'center', 
+                  padding: '0.5rem', 
+                  cursor: 'pointer',
+                  background: type === 'final' ? 'white' : 'transparent',
+                  boxShadow: type === 'final' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <input 
+                  type="radio" 
+                  name="invoiceType" 
+                  value="final" 
+                  checked={type === 'final'} 
+                  onChange={e => setType(e.target.value)} 
+                  style={{ display: 'none' }} 
+                />
                 Final Invoice
               </label>
-              <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input type="radio" name="invoiceType" value="proforma" checked={type === 'proforma'} onChange={e => setType(e.target.value)} />
+              <label 
+                style={{ 
+                  flex: 1, 
+                  textAlign: 'center', 
+                  padding: '0.5rem', 
+                  cursor: 'pointer',
+                  background: type === 'proforma' ? 'white' : 'transparent',
+                  boxShadow: type === 'proforma' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <input 
+                  type="radio" 
+                  name="invoiceType" 
+                  value="proforma" 
+                  checked={type === 'proforma'} 
+                  onChange={e => setType(e.target.value)} 
+                  style={{ display: 'none' }} 
+                />
                 Proforma
               </label>
             </div>

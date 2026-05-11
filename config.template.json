@@ -1,0 +1,23 @@
+{
+  "dbGitRepoPath": "../registrierkassa-db",
+  "business": {
+    "name": "Your Business Name",
+    "address": "Musterstraße 1, 1010 Wien",
+    "uid": "ATU12345678"
+  },
+  "invoiceTexts": {
+    "header": "Rechnung",
+    "proformaHeader": "Proforma-Rechnung",
+    "footer": "Vielen Dank für Ihren Einkauf!",
+    "taxExempt": "Umsatzsteuerfrei gemäß Kleinunternehmerregelung"
+  },
+  "rksv": {
+    "kassenID": "KASSA_1",
+    "aesKey": "BASE64_AES_KEY_HERE"
+  },
+  "itemTemplates": [
+    { "name": "Dienstleistung (Standard)", "price": 100, "taxRate": "20%" },
+    { "name": "Buch / Lebensmittel (Ermäßigt)", "price": 15, "taxRate": "10%" },
+    { "name": "Porto (Steuerfrei)", "price": 5.50, "taxRate": "0%" }
+  ]
+}

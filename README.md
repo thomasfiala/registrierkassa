@@ -1,0 +1,73 @@
+# Registrierkassa 🇦🇹
+
+An open-source, Austrian RKSV-compliant Point of Sale (POS) / Cash Register system. 
+
+Built with Next.js and Node.js, this project takes a unique approach to the mandatory "Datenerfassungsprotokoll" (DEP-7 audit trail) by backing the data layer with an **immutable Git repository**. Every invoice generates a JSON entry and a PDF, which are cryptographically chained and committed to Git automatically.
+
+## 🏗 Architecture
+
+1. **Next.js Web Frontend:** An English UI providing a simple POS cart system. Supports configurable item templates, dynamic tax rates, Proforma, and Final invoices.
+2. **Next.js API Routes:** Processes frontend requests, handles the cryptographic chain logic, and generates standard-compliant German PDFs.
+3. **Node.js CLI:** A terminal interface specifically for triggering RKSV mandatory zero-receipts (`Startbeleg`, `Monatsbeleg`, `Jahresbeleg`).
+4. **Git-Backed DB:** The `db.json` and generated PDFs reside in a *separate* folder that is automatically initialized as a Git repository. Every receipt triggers an atomic `git commit`, natively satisfying RKSV immutability and version control requirements.
+
+## 🚀 Setup & Installation
+
+### 1. Install Dependencies
+```bash
+npm install
+```
+
+### 2. Configuration
+Copy the configuration template and fill in your company details:
+```bash
+cp config.template.json config.json
+```
+Edit `config.json` to include:
+- `business`: Your legal company name, address, and UID (VAT number).
+- `invoiceTexts`: Standard text snippets used on the generated PDFs.
+- `itemTemplates`: Predefined POS items with prices and Austrian tax rates (20%, 13%, 10%, 0%).
+- `rksv`: Your Kassen-ID and AES-256 key for the encrypted turnover counter.
+
+### 3. Database Initialization
+You do not need to manually create the database. The system will read the `dbGitRepoPath` from your `config.json` (defaults to `../registrierkassa-db`), create the directory, inject `db.template.json`, and run `git init` automatically on the first transaction.
+
+## 🖥 Usage
+
+### Starting the Web UI (POS Terminal)
+```bash
+npm run dev
+```
+Open `http://localhost:3000` in your browser. From here you can add items, select tax rates, and generate Final/Proforma invoices.
+
+### RKSV CLI Commands
+Austrian law mandates specific zero-receipts to maintain the cryptographic chain at specific intervals. Run these directly from your terminal:
+
+**Initial Setup (Must be reported to FinanzOnline):**
+```bash
+npm run cli startbeleg
+```
+
+**End of Month (Optional but recommended):**
+```bash
+npm run cli monatsbeleg
+```
+
+**End of Year (Mandatory, must be checked with the BMF Belegcheck App):**
+```bash
+npm run cli jahresbeleg
+```
+
+## 🔐 RKSV Cryptography Integration (Action Required)
+
+To achieve full legal compliance, the cryptographic stubs in `src/lib/rksv.ts` must be connected to a qualified signature creation device (QSCD).
+
+Currently, `rksv.ts` outlines the exact data structures and hashes the chain correctly, but the actual AES and ECDSA signing functions are **stubs**.
+
+You must integrate one of the following to replace the stubs:
+- **A-Trust Smartcard:** Using local PC/SC readers or the A-Trust online HSM.
+- **Fiskaly API:** A cloud-based signature provider.
+- **BMF Mustercode:** Manual implementation of the JWS specs using raw crypto libraries.
+
+## 📄 PDF Generation
+Invoices are dynamically rendered via `pdfkit`. The script automatically regroups line items by tax rate at the footer, calculates Net, VAT, and Gross totals, and appends the RKSV QR Code for final receipts.

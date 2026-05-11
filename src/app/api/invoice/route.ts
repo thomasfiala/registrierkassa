@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
-import { commitReceipt, getDbPath, readDb } from '@/lib/db.ts';
-import { generateInvoicePdf } from '@/lib/pdf.ts';
-import { getConfig } from '@/lib/config.ts';
-import { encryptTurnover, buildRksvPayload, signPayloadJWS, hashJws } from '@/lib/rksv.ts';
+import { commitReceipt, getDbPath, readDb, deleteProforma, getPdfPath } from '@/lib/db';
+import { generateInvoicePdf } from '@/lib/pdf';
+import { getConfig } from '@/lib/config';
+import { encryptTurnover, buildRksvPayload, signPayloadJWS, hashJws } from '@/lib/rksv';
 import crypto from 'crypto';
 import path from 'path';
+import fs from 'fs';
+
+export async function GET(request: Request) {
+  try {
+    const db = await readDb();
+    return NextResponse.json({ success: true, receipts: db.receipts || [] });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -12,44 +22,102 @@ export async function POST(request: Request) {
     const config = getConfig();
     const db = await readDb();
     
+    // Check if preview
+    if (body.isPreview) {
+      const receiptNumber = `PREVIEW-${Date.now()}`;
+      const totalAmount = body.items.reduce((sum: number, item: any) => sum + (item.price * (item.quantity || 1)), 0);
+      const receiptData = {
+        receiptNumber,
+        date: new Date().toISOString(),
+        items: body.items || [],
+        totalAmount,
+        type: body.type || 'final',
+        customerNameAndAddress: body.customerNameAndAddress,
+        customMessage: body.customMessage,
+        paymentMethod: body.paymentMethod,
+        isProformaPreview: true
+      };
+      
+      const os = require('os');
+      const tempDir = os.tmpdir();
+      const pdfPath = path.join(tempDir, `${receiptNumber}.pdf`);
+      
+      await generateInvoicePdf(receiptData, pdfPath);
+      
+      const pdfBuffer = fs.readFileSync(pdfPath);
+      // clean up
+      fs.unlinkSync(pdfPath);
+
+      return new NextResponse(pdfBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+        },
+      });
+    }
+
     const receiptId = crypto.randomUUID();
-    const receiptNumber = `INV-${Date.now()}`;
-    const totalAmount = body.items.reduce((sum: number, item: any) => sum + item.price, 0);
+    const isProforma = body.type === 'proforma';
+    const isStorno = body.isStorno === true;
     
-    // RKSV Crypto Flow
-    const newTurnoverCents = Math.round((db.currentTurnover + totalAmount) * 100);
-    const encryptedTurnover = encryptTurnover(newTurnoverCents, config.rksv.kassenID, receiptNumber, config.rksv.aesKey);
-    const previousHash = db.lastReceiptHash || "ICAgICAgICAgICg="; // "        " base64 encoded for initial start
+    const receiptNumber = isProforma 
+        ? `PROF-${Date.now()}` 
+        : (isStorno ? `STORNO-${Date.now()}` : `INV-${Date.now()}`);
+
+    const totalAmount = body.items.reduce((sum: number, item: any) => sum + (item.price * (item.quantity || 1)), 0);
     
-    const rksvPayload = buildRksvPayload({ receiptNumber, date: new Date().toISOString(), items: body.items }, config, previousHash, encryptedTurnover);
-    const jwsString = signPayloadJWS(rksvPayload);
-    const newHash = hashJws(jwsString);
+    let rksvPayload, jwsString, newHash;
+    
+    if (!isProforma) {
+      const newTurnoverCents = Math.round((db.currentTurnover + totalAmount) * 100);
+      const encryptedTurnover = encryptTurnover(newTurnoverCents, config.rksv.kassenID, receiptNumber, config.rksv.aesKey);
+      const previousHash = db.lastReceiptHash || "ICAgICAgICAgICg="; 
+      
+      rksvPayload = buildRksvPayload({ receiptNumber, date: new Date().toISOString(), items: body.items }, config, previousHash, encryptedTurnover);
+      jwsString = signPayloadJWS(rksvPayload);
+      newHash = hashJws(jwsString);
+    }
 
     const receiptData = {
       id: receiptId,
       receiptNumber,
       date: new Date().toISOString(),
       items: body.items || [],
-      totalAmount: totalAmount,
+      totalAmount,
       type: body.type || 'final',
-      rksv: {
+      customerNameAndAddress: body.customerNameAndAddress,
+      customMessage: body.customMessage,
+      paymentMethod: body.paymentMethod,
+      isStorno,
+      stornoRef: body.stornoRef,
+      fromProformaId: body.fromProformaId,
+      rksv: isProforma ? undefined : {
         payload: rksvPayload,
         jws: jwsString,
         hash: newHash
       }
     };
 
-    const dbRepoPath = await getDbPath();
-    const pdfFilename = `${receiptNumber}.pdf`;
-    const pdfPath = path.join(dbRepoPath, pdfFilename);
+    const pdfPath = await getPdfPath(receiptData);
 
     await generateInvoicePdf(receiptData, pdfPath);
-    // Passing newHash to commit logic to update the running state
     await commitReceipt(receiptData, pdfPath, newHash);
 
     return NextResponse.json({ success: true, receipt: receiptData });
   } catch (error: any) {
     console.error('Failed to create invoice:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) throw new Error("ID required");
+    await deleteProforma(id);
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

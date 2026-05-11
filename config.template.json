@@ -49,5 +49,11 @@
       "price": 5.5,
       "taxRate": "0%"
     }
+  ],
+  "paymentMethods": [
+    { "name": "bar" },
+    { "name": "Überweisung" },
+    { "name": "SumUp", "feePercentage": 1.5, "feeTaxRate": "0%" },
+    { "name": "PayPal", "feePercentage": 2.5, "feeTaxRate": "0%" }
   ]
 }

@@ -17,6 +17,12 @@ export default function Home() {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('bar');
+  const [paymentMethodsData, setPaymentMethodsData] = useState<{name: string, feePercentage?: number, feeTaxRate?: string}[]>([
+    { name: 'bar' },
+    { name: 'SumUp' },
+    { name: 'Überweisung' },
+    { name: 'PayPal' }
+  ]);
   const [emailTexts, setEmailTexts] = useState({ subject: '', body: '' });
   
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -32,6 +38,10 @@ export default function Home() {
       if (data.itemTemplates) setTemplates(data.itemTemplates);
       if (data.invoiceTexts?.customMessageDefault) setCustomMessage(data.invoiceTexts.customMessageDefault);
       if (data.emailTexts) setEmailTexts(data.emailTexts);
+      if (data.paymentMethods && data.paymentMethods.length > 0) {
+        setPaymentMethodsData(data.paymentMethods);
+        setPaymentMethod(data.paymentMethods[0].name);
+      }
     });
     loadReceipts();
   }, []);
@@ -76,11 +86,29 @@ export default function Home() {
       setStatus('Cart is empty.');
       return;
     }
+
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const selectedMethod = paymentMethodsData.find(m => m.name === paymentMethod);
+    const feeAmount = (selectedMethod?.feePercentage && selectedMethod.feePercentage > 0) 
+      ? subtotal * (selectedMethod.feePercentage / 100) 
+      : 0;
+
+    const finalItems = [...items];
+    if (feeAmount > 0) {
+      finalItems.push({
+        id: Date.now() + Math.random(),
+        name: `Gebühr ${selectedMethod!.name}`,
+        price: feeAmount,
+        quantity: 1,
+        taxRate: selectedMethod!.feeTaxRate || '0%'
+      });
+    }
+
     setStatus('Creating...');
     const res = await fetch('/api/invoice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, type, customerNameAndAddress: customerInfo, customerEmail, customMessage, paymentMethod, fromProformaId })
+      body: JSON.stringify({ items: finalItems, type, customerNameAndAddress: customerInfo, customerEmail, customMessage, paymentMethod, fromProformaId })
     });
     
     const data = await res.json();
@@ -101,11 +129,29 @@ export default function Home() {
       setStatus('Cart is empty.');
       return;
     }
+
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const selectedMethod = paymentMethodsData.find(m => m.name === paymentMethod);
+    const feeAmount = (selectedMethod?.feePercentage && selectedMethod.feePercentage > 0) 
+      ? subtotal * (selectedMethod.feePercentage / 100) 
+      : 0;
+
+    const finalItems = [...items];
+    if (feeAmount > 0) {
+      finalItems.push({
+        id: Date.now() + Math.random(),
+        name: `Gebühr ${selectedMethod!.name}`,
+        price: feeAmount,
+        quantity: 1,
+        taxRate: selectedMethod!.feeTaxRate || '0%'
+      });
+    }
+
     setStatus('Loading preview...');
     const res = await fetch('/api/invoice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, type, customerNameAndAddress: customerInfo, customerEmail, customMessage, paymentMethod, isPreview: true })
+      body: JSON.stringify({ items: finalItems, type, customerNameAndAddress: customerInfo, customerEmail, customMessage, paymentMethod, isPreview: true })
     });
     if (res.ok) {
       const blob = await res.blob();
@@ -196,7 +242,12 @@ export default function Home() {
     }
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const selectedMethodForTotal = paymentMethodsData.find(m => m.name === paymentMethod);
+  const currentFeeAmount = (selectedMethodForTotal?.feePercentage && selectedMethodForTotal.feePercentage > 0)
+    ? subtotalAmount * (selectedMethodForTotal.feePercentage / 100)
+    : 0;
+  const totalAmount = subtotalAmount + currentFeeAmount;
 
   const filteredReceipts = receipts.filter(r => 
       r.receiptNumber.toLowerCase().includes(search.toLowerCase()) || 
@@ -243,10 +294,10 @@ export default function Home() {
           <textarea placeholder="Custom message (below table)" value={customMessage} onChange={e => setCustomMessage(e.target.value)} style={{ width: '100%', height: '60px', padding: '0.5rem', marginBottom: '1rem' }} />
           <div>
             <strong>Zahlungsmittel: </strong>
-            {['bar', 'SumUp', 'Überweisung', 'PayPal'].map(method => (
-              <label key={method} style={{ marginRight: '1rem', cursor: 'pointer' }}>
-                <input type="radio" name="paymentMethod" value={method} checked={paymentMethod === method} onChange={() => setPaymentMethod(method)} style={{ marginRight: '0.2rem' }} />
-                {method}
+            {paymentMethodsData.map(method => (
+              <label key={method.name} style={{ marginRight: '1rem', cursor: 'pointer' }}>
+                <input type="radio" name="paymentMethod" value={method.name} checked={paymentMethod === method.name} onChange={() => setPaymentMethod(method.name)} style={{ marginRight: '0.2rem' }} />
+                {method.name} {method.feePercentage ? `(+${method.feePercentage}%)` : ''}
               </label>
             ))}
           </div>
@@ -268,7 +319,11 @@ export default function Home() {
             </ul>
           )}
           
-          <h3 style={{ textAlign: 'right' }}>Total: € {totalAmount.toFixed(2)}</h3>
+          <div style={{ textAlign: 'right', marginTop: '1rem' }}>
+            {currentFeeAmount > 0 && <h4 style={{ margin: '0.2rem 0', color: '#555' }}>Subtotal: € {subtotalAmount.toFixed(2)}</h4>}
+            {currentFeeAmount > 0 && <h4 style={{ margin: '0.2rem 0', color: '#555' }}>Gebühr {paymentMethod}: € {currentFeeAmount.toFixed(2)}</h4>}
+            <h3 style={{ margin: '0.5rem 0' }}>Total: € {totalAmount.toFixed(2)}</h3>
+          </div>
 
           <div style={{ marginTop: '2rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Invoice Type</label>

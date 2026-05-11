@@ -8,7 +8,13 @@ export async function GET() {
       itemTemplates: config.itemTemplates || [],
       business: config.business,
       invoiceTexts: config.invoiceTexts || {},
-      emailTexts: config.emailTexts || {}
+      emailTexts: config.emailTexts || {},
+      paymentMethods: config.paymentMethods || [
+        { name: 'bar' },
+        { name: 'SumUp' },
+        { name: 'Überweisung' },
+        { name: 'PayPal' }
+      ]
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

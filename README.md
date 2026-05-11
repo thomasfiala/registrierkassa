@@ -27,6 +27,7 @@ Edit `config.json` to include:
 - `business`: Your legal company name, address, and UID (VAT number).
 - `invoiceTexts`: Standard text snippets used on the generated PDFs. Added custom defaults!
 - `itemTemplates`: Predefined POS items with prices and Austrian tax rates (20%, 13%, 10%, 0%).
+- `paymentMethods`: Configure available payment methods. You can optionally add a percentage fee (`feePercentage`) and its corresponding tax rate (`feeTaxRate`). If configured, selecting this payment method will automatically add the fee to the invoice total.
 - `rksv`: Your Kassen-ID and AES-256 key for the encrypted turnover counter.
 
 ### 3. Database Initialization

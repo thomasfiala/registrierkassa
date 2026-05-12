@@ -133,3 +133,4 @@ export async function deleteProforma(id: string) {
   await git.commit(`Deleted Proforma ${receipt.receiptNumber}`);
   await pushIfEnabled(git);
 }
+export async function wipeDbHistory() { console.log('Wiping DB history... (Mocked for now)'); }

@@ -1,0 +1,14 @@
+[Unit]
+Description=Registrierkassa App
+After=network.target
+
+[Service]
+Type=simple
+User=clawdbot
+WorkingDirectory=/home/clawdbot/.openclaw/workspace/registrierkassa
+ExecStart=/usr/bin/npm start
+Environment=PORT=1235
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

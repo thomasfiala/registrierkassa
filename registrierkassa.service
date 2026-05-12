@@ -6,8 +6,10 @@ After=network.target
 Type=simple
 User=clawdbot
 WorkingDirectory=/home/clawdbot/.openclaw/workspace/registrierkassa
-ExecStart=/usr/bin/npm start
+Environment="PATH=/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin:/bin"
 Environment=PORT=1235
+Environment=HOSTNAME=0.0.0.0
+ExecStart=/home/linuxbrew/.linuxbrew/bin/npm start
 Restart=on-failure
 
 [Install]

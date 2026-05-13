@@ -113,12 +113,47 @@ Open your crontab using `crontab -e` and add the following lines (adjust the pat
 
 To achieve full legal compliance, the cryptographic stubs in `src/lib/rksv.ts` must be connected to a qualified signature creation device (QSCD).
 
-Currently, `rksv.ts` outlines the exact data structures and hashes the chain correctly, but the actual AES and ECDSA signing functions are **stubs**.
+Because this system already implements the Data Capture Log (DEP) and payload logic natively, the most efficient approach is using a **Cloud Signature Provider (Online HSM)**. Instead of plugging a physical USB smartcard reader into your server, your software makes an API call to a certified provider to securely sign each receipt.
 
-You must integrate one of the following to replace the stubs:
-- **A-Trust Smartcard:** Using local PC/SC readers or the A-Trust online HSM.
-- **Fiskaly API:** A cloud-based signature provider.
-- **BMF Mustercode:** Manual implementation of the JWS specs using raw crypto libraries.
+### 6 Steps to Setup (Cloud Solution)
+
+**1. Purchase a Cloud Certificate**
+Buy an "Online-Signatur" (e.g., a-sign RK Online) from a trusted provider. You will receive API credentials and a certificate serial number.
+
+**2. Generate your AES-256 Key**
+Generate a random 32-byte (256-bit) AES key locally. Save this in your `config.json` (`rksv.aesKey`). This encrypts your running turnover counter so it cannot be read in plain text from the QR code.
+
+**3. Register in FinanzOnline**
+Log into FinanzOnline and register:
+- **The Cash Register (Kassa):** Enter your "Kassen-ID" and upload the AES-256 key from Step 2.
+- **The Signature Device (Sicherheitseinrichtung):** Enter the serial number of your cloud certificate and select "HSM" (Hardware Security Module of a service provider).
+
+**4. Implement the API in your Code**
+In `src/lib/rksv.ts`, replace the stubs:
+- **AES Encryption:** Implement standard Node.js `crypto` to encrypt the turnover using your AES key (fully local and free).
+- **JWS Signature:** Replace `STUB_SIGNATURE` with an HTTP `POST` request to your provider's API. Send the payload string, and their server returns the cryptographic signature.
+
+**5. Generate the Startbeleg**
+Create your first zero-receipt (`npm run cli startbeleg`). This receipt will have a legally valid QR code.
+
+**6. Verify the Startbeleg**
+Scan the QR code of the Startbeleg with the official **BMF Belegcheck App**. Once the app says "Valid", your cash register is legally active.
+
+### Cloud Provider Cost Overview
+
+**Option A: A-Trust (Recommended)**
+A-Trust is the market leader in Austria and the most cost-effective for this self-hosted setup, as you only pay for the raw signatures.
+- **Certificate Setup (valid for 5 years):** ~€ 9.00 - € 15.00 (one-time fee).
+- **Transaction Costs (Signature Packages):** ~€ 15.00 for 10,000 signatures; ~€ 90.00 for 100,000.
+- *Estimated Total Cost:* ~€ 25 to get started for the first 5 years (for low volume).
+
+**Option B: Fiskaly**
+Fiskaly offers a modern REST API that can handle the whole DEP storage, AES encryption, and FinanzOnline reporting. Since this project handles DEP natively via Git, much of Fiskaly's feature set is redundant here.
+- **Pricing:** Subscription-based, ~€ 10.00 - € 15.00 per month per cash register.
+- *Estimated Total Cost:* ~€ 120 - € 180 per year.
+
+**Option C: GlobalTrust**
+Similar to A-Trust. Usually around € 40 for a 3-year certificate including a set amount of cloud signatures.
 
 ## 📄 PDF Generation
 Invoices are dynamically rendered via `pdfkit`. The script automatically regroups line items by tax rate at the footer, calculates Net, VAT, and Gross totals, and appends the RKSV QR Code for final receipts.

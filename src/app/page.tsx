@@ -77,6 +77,10 @@ export default function Home() {
     setItems(items.map(i => i.id === id ? { ...i, name: name } : i));
   };
 
+  const updateItemTax = (id: number, taxRate: string) => {
+    setItems(items.map(i => i.id === id ? { ...i, taxRate: taxRate } : i));
+  };
+
   const removeItem = (id: number) => {
     setItems(items.filter(i => i.id !== id));
   };
@@ -330,8 +334,14 @@ export default function Home() {
                   <input type="number" value={item.quantity} onChange={e => updateItemQty(item.id, parseFloat(e.target.value))} style={{ width: '50px' }} />
                   <input type="text" value={item.name} onChange={e => updateItemName(item.id, e.target.value)} style={{ flex: 1 }} />
                   <input type="number" step="0.01" value={item.price} onChange={e => updateItemPrice(item.id, parseFloat(e.target.value))} style={{ width: '80px' }} />
-                  <span>({item.taxRate})</span>
-                  <button onClick={() => removeItem(item.id)} style={{ color: 'red', cursor: 'pointer', border: 'none', background: 'none' }}>X</button>
+                  <select value={item.taxRate} onChange={e => updateItemTax(item.id, e.target.value)} style={{ padding: '0.2rem' }}>
+                    <option value="20%">20%</option>
+                    <option value="13%">13%</option>
+                    <option value="10%">10%</option>
+                    <option value="0%">0%</option>
+                  </select>
+                  <span style={{ width: '80px', textAlign: 'right' }}>€ {(item.quantity * item.price).toFixed(2)}</span>
+                  <button onClick={() => removeItem(item.id)} style={{ color: 'red', cursor: 'pointer', border: 'none', background: 'none', marginLeft: '0.5rem' }}>X</button>
                 </li>
               ))}
             </ul>

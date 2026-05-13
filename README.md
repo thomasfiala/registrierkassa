@@ -4,6 +4,15 @@ An open-source, Austrian RKSV-compliant Point of Sale (POS) / Cash Register syst
 
 Built with Next.js and Node.js, this project takes a unique approach to the mandatory "Datenerfassungsprotokoll" (DEP-7 audit trail) by backing the data layer with an **immutable Git repository**. Every invoice generates a JSON entry and a PDF, which are cryptographically chained and committed to Git automatically.
 
+## ✨ Key Advantages
+
+- **Open Source & Low Cost:** Completely free from expensive POS subscriptions or vendor lock-in. Your only running cost is the raw cryptographic signatures (e.g., ~$5/year via A-Trust API).
+- **Self-Hosted Privacy:** Run it on your own hardware (Raspberry Pi, local PC) or a cheap VPS. Your financial data never sits on a third-party server.
+- **Infinite Extendability:** Built on modern standard web technologies (React/Next.js/Node.js), making it incredibly easy to customize to your exact business workflow.
+- **CLI Automation:** Features a robust command-line interface, allowing you to trigger receipts, automate zero-receipts, or pipe data to other tools natively.
+- **Automatic Storage & Backup:** The Git-backed database automatically creates immutable, timestamped revisions of every single transaction and pushes them to a remote backup repository without any manual intervention.
+- **OpenClaw AI Integration:** Includes a ready-to-use OpenClaw skill (`skills/registrierkassa/SKILL.md`), allowing your AI assistant to manage receipts, send invoices via email, and handle recurring bureaucratic reminders (like scanning the annual `Jahresbeleg`).
+
 ## 🏗 Architecture
 
 1. **Next.js Web Frontend:** An English UI providing a simple POS cart system. Supports configurable item templates, dynamic tax rates, Proforma, and Final invoices.

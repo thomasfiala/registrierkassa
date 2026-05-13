@@ -78,12 +78,19 @@ npm run cli monatsbeleg
 ```bash
 npm run cli jahresbeleg
 ```
-> **⚠️ IMPORTANT:** Every Jahresbeleg **MUST** be validated using the official "BMF Belegcheck" app (available on iOS/Android). This verifies that the signature chain and cryptographic parameters are sound before reporting to the FinanzOnline service.
+> **⚠️ IMPORTANT:** Every Jahresbeleg **MUST** be validated using the official "BMF Belegcheck" app (available on iOS/Android). The cron job above only *creates* the receipt in your system. You must manually scan the QR code of this receipt with your smartphone to transmit the verification to FinanzOnline. Legally, you have until February 15th of the new year to do this.
 
 **Other commands:**
 - `npm run cli tagesbeleg` (Daily zero-receipt)
 - `npm run cli nullbeleg` (Generic zero-receipt)
 - `npm run cli export` (Export database to CSV)
+
+### Official DEP Export (Datenerfassungsprotokoll)
+Austrian law requires an official JSON export format for the DEP in case of an audit. You can generate this using the provided export script. It reads your database, compiles the `Belege-Gruppe` structure, saves it as `dep-export.json` inside your git-backed database repository, and automatically commits/pushes the file.
+
+```bash
+node scripts/export-dep.js
+```
 
 ## 🕒 Automating Receipts (Cron Jobs)
 
@@ -97,6 +104,9 @@ Open your crontab using `crontab -e` and add the following lines (adjust the pat
 
 # Generate a Jahresbeleg at 23:55 on December 31st
 55 23 31 12 * cd /path/to/registrierkassa && npm run cli jahresbeleg
+
+# Generate and backup the official DEP export quarterly (at 02:00 AM on the 1st of Jan, Apr, Jul, Oct)
+0 2 1 1,4,7,10 * cd /path/to/registrierkassa && node scripts/export-dep.js
 ```
 
 ## 🔐 RKSV Cryptography Integration (Action Required)

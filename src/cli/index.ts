@@ -10,6 +10,7 @@ import { getDbPath, readDb, commitReceipt, initDbRepo, wipeDbHistory, writeDb } 
 import { generateInvoicePdf } from '../lib/pdf';
 import { encryptTurnover, buildRksvPayload, signPayloadJWS, hashJws } from '../lib/rksv';
 import { sendEmail } from '../lib/email';
+import { getCurrentTimezonedDate } from '../lib/date';
 
 const program = new Command();
 
@@ -26,7 +27,7 @@ async function createSystemBeleg(type: 'Startbeleg' | 'Monatsbeleg' | 'Jahresbel
     
     const receiptId = crypto.randomUUID();
     const receiptNumber = `${type.toUpperCase()}-${Date.now()}`;
-    const date = new Date().toISOString();
+    const date = getCurrentTimezonedDate();
     
     const items = [{ name: type, price: 0, taxRate: '0%', quantity: 1 }];
     const totalAmount = 0;
@@ -136,6 +137,7 @@ async function setupInteractive() {
     const mergeConfig = { ...configTpl, ...existingConfig };
 
     const questions = [
+      { type: 'input', name: 'timezone', message: 'Timezone', initial: mergeConfig.timezone || "Europe/Vienna" },
       { type: 'input', name: 'dbGitRepoPath', message: 'DB Git Repo Path', initial: mergeConfig.dbGitRepoPath || "db" },
       { type: 'input', name: 'rksv.kassenID', message: 'RKSV Kassen ID', initial: mergeConfig.rksv?.kassenID || "KASSA_1" },
       { type: 'input', name: 'rksv.aesKey', message: 'RKSV AES Key (Base64)', initial: mergeConfig.rksv?.aesKey || "" },

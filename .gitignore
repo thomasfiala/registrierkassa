@@ -26,6 +26,9 @@ yarn-error.log*
 .env*.local
 .env
 
+# systemd service
+registrierkassa.service
+
 # config/db
 config.json
 db.json

@@ -3,6 +3,7 @@ import { commitReceipt, getDbPath, readDb, deleteProforma, getPdfPath } from '@/
 import { generateInvoicePdf } from '@/lib/pdf';
 import { getConfig } from '@/lib/config';
 import { encryptTurnover, buildRksvPayload, signPayloadJWS, hashJws } from '@/lib/rksv';
+import { getCurrentTimezonedDate } from '@/lib/date';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       const totalAmount = body.items.reduce((sum: number, item: any) => sum + (item.price * (item.quantity || 1)), 0);
       const receiptData = {
         receiptNumber,
-        date: new Date().toISOString(),
+        date: getCurrentTimezonedDate(),
         items: body.items || [],
         totalAmount,
         type: body.type || 'final',
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
       const encryptedTurnover = encryptTurnover(newTurnoverCents, config.rksv.kassenID, receiptNumber, config.rksv.aesKey);
       const previousHash = db.lastReceiptHash || "ICAgICAgICAgICg="; 
       
-      rksvPayload = buildRksvPayload({ receiptNumber, date: new Date().toISOString(), items: body.items }, config, previousHash, encryptedTurnover);
+      rksvPayload = buildRksvPayload({ receiptNumber, date: getCurrentTimezonedDate(), items: body.items }, config, previousHash, encryptedTurnover);
       jwsString = signPayloadJWS(rksvPayload);
       newHash = hashJws(jwsString);
     }
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
     const receiptData = {
       id: receiptId,
       receiptNumber,
-      date: new Date().toISOString(),
+      date: getCurrentTimezonedDate(),
       items: body.items || [],
       totalAmount,
       type: body.type || 'final',

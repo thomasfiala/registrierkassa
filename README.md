@@ -10,6 +10,9 @@ Built with Next.js and Node.js, this project takes a unique approach to the mand
 - **Self-Hosted Privacy:** Run it on your own hardware (Raspberry Pi, local PC) or a cheap VPS. Your financial data never sits on a third-party server.
 - **Infinite Extendability:** Built on modern standard web technologies (React/Next.js/Node.js), making it incredibly easy to customize to your exact business workflow.
 - **CLI Automation:** Features a robust command-line interface, allowing you to trigger receipts, automate zero-receipts, or pipe data to other tools natively.
+- **Interactive Onboarding Tool:** Get up and running in minutes with an interactive CLI setup that configures your company details, database paths, and preferences.
+- **SEPA QR Codes:** Automatically generate and print EPC SEPA QR codes on invoices when paying via bank transfer (Überweisung) for fast, error-free customer payments.
+- **Payment Method Fees:** Configure percentage-based fees (e.g., for Stripe or credit cards) that automatically calculate and apply the correct tax rate to the invoice total.
 - **Automatic Storage & Backup:** The Git-backed database automatically creates immutable, timestamped revisions of every single transaction and pushes them to a remote backup repository without any manual intervention.
 - **OpenClaw AI Integration:** Includes a ready-to-use OpenClaw skill (`skills/registrierkassa/SKILL.md`), allowing your AI assistant to manage receipts, send invoices via email, and handle recurring bureaucratic reminders (like scanning the annual `Jahresbeleg`).
 
@@ -28,7 +31,13 @@ npm install
 ```
 
 ### 2. Configuration
-Copy the configuration template and fill in your company details:
+The easiest way to configure your cash register is by running the interactive setup tool:
+```bash
+npm run cli setup
+```
+This tool will guide you through setting up your business details, taxes, and database path.
+
+Alternatively, you can manually copy the configuration template:
 ```bash
 cp config.template.json config.json
 ```
@@ -100,6 +109,25 @@ Austrian law requires an official JSON export format for the DEP in case of an a
 ```bash
 node scripts/export-dep.js
 ```
+
+## 🌍 Production Deployment (Linux / Systemd)
+
+If you are running the cash register on a Linux server (like a VPS or a Raspberry Pi), it's highly recommended to run it as a background service using `systemd`. This ensures it automatically starts on boot and restarts if it crashes.
+
+1. **Copy the template:**
+   ```bash
+   cp registrierkassa.service.template registrierkassa.service
+   ```
+2. **Edit the service file:**
+   Open `registrierkassa.service` and replace `<YOUR_USERNAME>` with your actual Linux user, and `/path/to/registrierkassa` with the absolute path to your installation. Ensure `ExecStart` points to your `npm` or `node` binary.
+   *(Note: `registrierkassa.service` is in `.gitignore`, so your local paths and usernames will never be accidentally committed to git).*
+3. **Install and start the service:**
+   ```bash
+   sudo ln -s /full/path/to/registrierkassa/registrierkassa.service /etc/systemd/system/registrierkassa.service
+   sudo systemctl daemon-reload
+   sudo systemctl enable registrierkassa.service
+   sudo systemctl start registrierkassa.service
+   ```
 
 ## 🕒 Automating Receipts (Cron Jobs)
 

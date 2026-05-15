@@ -1,6 +1,6 @@
 {
   "timezone": "Europe/Vienna",
-  "dbGitRepoPath": "../registrierkassa-db",
+  "dbGitRepoPath": "db",
   "gitBackup": {
     "enabled": false,
     "remote": "origin",

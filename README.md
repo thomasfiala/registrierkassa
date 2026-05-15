@@ -50,7 +50,7 @@ Edit `config.json` to include:
 - `rksv`: Your Kassen-ID and AES-256 key for the encrypted turnover counter.
 
 ### 3. Database Initialization
-You do not need to manually create the database. The system will read the `dbGitRepoPath` from your `config.json` (defaults to `../registrierkassa-db`), create the directory, inject `db.template.json`, and run `git init` automatically on the first transaction.
+You do not need to manually create the database. The system will read the `dbGitRepoPath` from your `config.json` (defaults to `db`, which resolves to `~/.registrierkassa/db`), create the directory, inject `db.template.json`, and run `git init` automatically on the first transaction.
 
 ### 4. Git Backup Integration (Optional)
 To ensure your receipts and database are safe against hardware failures, the app can automatically push every new receipt (git commit) to a remote Git repository (like GitHub or GitLab).
@@ -63,9 +63,9 @@ To ensure your receipts and database are safe against hardware failures, the app
      "branch": "main"
    }
    ```
-2. Manually add the remote to your database repository once. If you kept the default path, this is in the `../registrierkassa-db` folder relative to your app:
+2. Manually add the remote to your database repository once. By default, this is in the `~/.registrierkassa/db` folder:
    ```bash
-   cd ../registrierkassa-db
+   cd ~/.registrierkassa/db
    git remote add origin git@github.com:yourusername/registrierkassa-db-backup.git
    ```
 

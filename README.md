@@ -63,9 +63,9 @@ To ensure your receipts and database are safe against hardware failures, the app
      "branch": "main"
    }
    ```
-2. Manually add the remote to your database repository once. By default, this is in the `~/.registrierkassa/db` folder:
+2. Manually add the remote to your database repository once. If you kept the default path, this is in the `../registrierkassa-db` folder relative to your app:
    ```bash
-   cd ~/.registrierkassa/db
+   cd ../registrierkassa-db
    git remote add origin git@github.com:yourusername/registrierkassa-db-backup.git
    ```
 
@@ -74,10 +74,16 @@ To ensure your receipts and database are safe against hardware failures, the app
 ## 🖥 Usage
 
 ### Starting the Web UI (POS Terminal)
+**Development Mode:**
 ```bash
 npm run dev
 ```
-Open `http://localhost:3000` in your browser. From here you can add items, change quantities, select tax rates, preview, storno, and generate Final/Proforma invoices. You can also export the database as a CSV file.
+Open `http://localhost:3000` in your browser.
+
+**Production Mode (Systemd Service):**
+If running via the provided `registrierkassa.service`, the app will be accessible on `http://localhost:1235` (or your server's IP at port 1235).
+
+From the Web UI, you can add items, change quantities, select tax rates, preview, storno, and generate Final/Proforma invoices. You can also export the database as a CSV file.
 
 ### RKSV CLI Commands
 Austrian law mandates specific zero-receipts to maintain the cryptographic chain at specific intervals. Run these directly from your terminal:

@@ -21,5 +21,5 @@ Runs as a systemd service on port 1235.
 ## Recurring Tasks & Reminders
 
 ### Jahresbeleg Verification Reminder
-Every January 1st, remind the user to scan their Jahresbeleg using the BMF Belegcheck app. You can do this by adding a check to your heartbeat or setting a cron message. 
+When this skill is activated, you should automatically set up a recurring cron job or heartbeat check for every January 1st to remind the user to scan their Jahresbeleg using the BMF Belegcheck app.
 - **Message:** "The `Jahresbeleg` for your Registrierkassa was generated last night. Please remember to scan its QR code using the official BMF Belegcheck App before February 15th to verify it with FinanzOnline."

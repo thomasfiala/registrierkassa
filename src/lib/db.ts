@@ -75,9 +75,10 @@ export async function commitReceipt(receiptData: any, pdfPath: string | undefine
     if (original) original.stornoed = true;
   }
   
-  // If it's a new proforma saved as final, delete old proforma
+  // If it's a new proforma saved as final, mark the old proforma as converted
   if (receiptData.fromProformaId) {
-    // Proformas are no longer automatically deleted.
+    const proforma = db.receipts.find((r: any) => r.id === receiptData.fromProformaId);
+    if (proforma) proforma.convertedToFinal = true;
     delete receiptData.fromProformaId;
   }
 

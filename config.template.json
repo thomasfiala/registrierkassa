@@ -1,4 +1,5 @@
 {
+  "appHeader": "Registrierkassa",
   "timezone": "Europe/Vienna",
   "dbGitRepoPath": "db",
   "gitBackup": {

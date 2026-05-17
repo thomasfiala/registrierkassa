@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 
 type Item = { name: string; price: number; taxRate: string; id: number; quantity: number };
 type Template = { name: string; price: number; taxRate: string };
-type Receipt = { id: string; receiptNumber: string; date: string; type: string; totalAmount: number; customerNameAndAddress?: string; customerEmail?: string; isStorno?: boolean; stornoed?: boolean; stornoRef?: string; items: any[] };
+type Receipt = { id: string; receiptNumber: string; date: string; type: string; totalAmount: number; customerNameAndAddress?: string; customerEmail?: string; isStorno?: boolean; stornoed?: boolean; stornoRef?: string; convertedToFinal?: boolean; items: any[] };
 
 export default function Home() {
   const [items, setItems] = useState<Item[]>([]);
@@ -435,10 +435,10 @@ export default function Home() {
           </thead>
           <tbody>
             {filteredReceipts.map(r => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #eee', background: r.isStorno || r.stornoed ? '#fff0f0' : 'transparent', transition: 'background 0.2s' }}
-                  onMouseOver={e => e.currentTarget.style.background = r.isStorno || r.stornoed ? '#fee2e2' : '#f9f9f9'} 
-                  onMouseOut={e => e.currentTarget.style.background = r.isStorno || r.stornoed ? '#fff0f0' : 'transparent'}>
-                <td style={{ padding: '1rem' }}>{r.receiptNumber} {r.isStorno && `(Storno: ${r.stornoRef})`} {r.stornoed && `(Storniert)`}</td>
+              <tr key={r.id} style={{ borderBottom: '1px solid #eee', background: r.isStorno || r.stornoed ? '#fff0f0' : (r.convertedToFinal ? '#e6f7ff' : 'transparent'), transition: 'background 0.2s' }}
+                  onMouseOver={e => e.currentTarget.style.background = r.isStorno || r.stornoed ? '#fee2e2' : (r.convertedToFinal ? '#d0edff' : '#f9f9f9')} 
+                  onMouseOut={e => e.currentTarget.style.background = r.isStorno || r.stornoed ? '#fff0f0' : (r.convertedToFinal ? '#e6f7ff' : 'transparent')}>
+                <td style={{ padding: '1rem' }}>{r.receiptNumber} {r.isStorno && `(Storno: ${r.stornoRef})`} {r.stornoed && `(Storniert)`} {r.convertedToFinal && `(Abgeschlossen)`}</td>
                 <td style={{ padding: '1rem' }}>{new Date(r.date).toLocaleString('de-AT')}</td>
                 <td style={{ padding: '1rem' }}>{r.type}</td>
                 <td style={{ padding: '1rem' }}>{r.customerNameAndAddress?.split('\n')[0] || '-'}</td>

@@ -137,6 +137,7 @@ async function setupInteractive() {
     const mergeConfig = { ...configTpl, ...existingConfig };
 
     const questions = [
+      { type: 'input', name: 'appHeader', message: 'App Header Title', initial: mergeConfig.appHeader || "Registrierkassa" },
       { type: 'input', name: 'timezone', message: 'Timezone', initial: mergeConfig.timezone || "Europe/Vienna" },
       { type: 'input', name: 'dbGitRepoPath', message: 'DB Git Repo Path', initial: mergeConfig.dbGitRepoPath || "db" },
       { type: 'input', name: 'rksv.kassenID', message: 'RKSV Kassen ID', initial: mergeConfig.rksv?.kassenID || "KASSA_1" },

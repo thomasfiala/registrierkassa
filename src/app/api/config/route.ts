@@ -5,6 +5,7 @@ export async function GET() {
   try {
     const config = getConfig();
     return NextResponse.json({
+      appHeader: config.appHeader || "Registrierkassa",
       itemTemplates: config.itemTemplates || [],
       business: config.business,
       invoiceTexts: config.invoiceTexts || {},

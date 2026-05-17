@@ -57,9 +57,26 @@
     }
   ],
   "paymentMethods": [
-    { "name": "bar" },
-    { "name": "Überweisung" },
-    { "name": "SumUp", "feePercentage": 1.5, "feeTaxRate": "0%" },
-    { "name": "PayPal", "feePercentage": 2.5, "feeTaxRate": "0%" }
-  ]
+    {
+      "appHeader": "FeWo Kassa",
+      "name": "bar"
+    },
+    {
+      "appHeader": "FeWo Kassa",
+      "name": "Überweisung"
+    },
+    {
+      "appHeader": "FeWo Kassa",
+      "name": "SumUp",
+      "feePercentage": 1.5,
+      "feeTaxRate": "0%"
+    },
+    {
+      "appHeader": "FeWo Kassa",
+      "name": "PayPal",
+      "feePercentage": 2.5,
+      "feeTaxRate": "0%"
+    }
+  ],
+  "appHeader": "FeWo Kassa"
 }

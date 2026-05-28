@@ -67,23 +67,57 @@ describe('RKSV Core Functionalities', () => {
     });
   });
 
-  describe('signPayloadJWS (ES256)', () => {
-    it('should output a correctly formatted JWS string', () => {
+  describe('signPayloadJWS (A-Trust HSM Online)', () => {
+    const mockConfig = {
+      rksv: {
+        hsUsername: 'u123456789',
+        hsPassword: 'test-password',
+        hsUrl: 'https://hs-abnahme.a-trust.at/RegistrierkasseMobile/v2'
+      }
+    };
+
+    beforeEach(() => {
+      global.fetch = jest.fn() as jest.Mock;
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should successfully post to A-Trust and return JWS', async () => {
+      const mockJwsResponse = { JWS: 'eyJhbGciOiJFUzI1NiJ9.dGVzdA.c2lnbmF0dXJl' };
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockJwsResponse)
+      });
+
       const payload = 'TEST_PAYLOAD';
-      const jws = signPayloadJWS(payload);
+      const jws = await signPayloadJWS(payload, mockConfig);
       
-      // JWS consists of 3 parts separated by dots
-      const parts = jws.split('.');
-      expect(parts.length).toBe(3);
-      
-      // The header should decode to alg: ES256
-      const headerRaw = Buffer.from(parts[0], 'base64url').toString('utf8');
-      const header = JSON.parse(headerRaw);
-      expect(header.alg).toBe('ES256');
-      
-      // The payload part should match the base64url of our input payload
-      const payloadRaw = Buffer.from(parts[1], 'base64url').toString('utf8');
-      expect(payloadRaw).toBe(payload);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://hs-abnahme.a-trust.at/RegistrierkasseMobile/v2/u123456789/Sign/JWS',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: 'test-password', jws_payload: payload })
+        })
+      );
+      expect(jws).toBe(mockJwsResponse.JWS);
+    });
+
+    it('should throw an error when A-Trust API fails', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: jest.fn().mockResolvedValue('Invalid credentials')
+      });
+
+      await expect(signPayloadJWS('TEST_PAYLOAD', mockConfig)).rejects.toThrow('A-Trust HSM Error: 401 Unauthorized - Invalid credentials');
+    });
+
+    it('should throw an error if credentials are missing', async () => {
+      await expect(signPayloadJWS('TEST_PAYLOAD', { rksv: {} })).rejects.toThrow('Missing A-Trust HSM credentials');
     });
   });
 

@@ -50,19 +50,46 @@ export function buildRksvPayload(receiptData: any, config: any, previousHash: st
 }
 
 /**
- * Signs the payload using ECDSA (P-256) and SHA-256 (ES256) and returns the final JWS string.
+ * Signs the payload using A-Trust HSM Online (a.sign RK HSM) and returns the final JWS string.
  * This is the exact string that goes into the QR Code.
  */
-export function signPayloadJWS(payload: string): string {
-  // STUB: This is where we would interface with an A-Trust SmartCard or Fiskaly API 
-  // to sign the payload and wrap it in a JWS (JSON Web Signature) format.
-  // Format: Base64Url(Header) + '.' + Base64Url(Payload) + '.' + Base64Url(Signature)
+export async function signPayloadJWS(payload: string, config: any): Promise<string> {
+  const {
+    hsUsername,
+    hsPassword,
+    hsUrl = 'https://hs-abnahme.a-trust.at/RegistrierkasseMobile/v2'
+  } = config.rksv;
+
+  if (!hsUsername || !hsPassword) {
+    throw new Error('Missing A-Trust HSM credentials (hsUsername, hsPassword)');
+  }
+
+  const url = `${hsUrl}/${hsUsername}/Sign/JWS`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      password: hsPassword,
+      jws_payload: payload
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`A-Trust HSM Error: ${response.status} ${response.statusText} - ${errText}`);
+  }
+
+  const result = await response.json();
   
-  const header = Buffer.from(JSON.stringify({ alg: "ES256" })).toString('base64url');
-  const b64Payload = Buffer.from(payload).toString('base64url');
-  const dummySignature = Buffer.from("STUB_SIGNATURE").toString('base64url');
+  // A-Trust typically returns {"JWS": "..."} in their JSON response
+  if (result.JWS) {
+    return result.JWS;
+  }
   
-  return `${header}.${b64Payload}.${dummySignature}`;
+  return result; // Fallback if the response is directly the string or has a different structure
 }
 
 /**

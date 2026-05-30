@@ -192,9 +192,8 @@ Scan the QR code of the Startbeleg with the official **BMF Belegcheck App**. Onc
 
 **Option A: A-Trust (Recommended)**
 A-Trust is the market leader in Austria and the most cost-effective for this self-hosted setup, as you only pay for the raw signatures.
-- **Certificate Setup (valid for 5 years):** ~€ 9.00 - € 15.00 (one-time fee).
-- **Transaction Costs (Signature Packages):** ~€ 15.00 for 10,000 signatures; ~€ 90.00 for 100,000.
-- *Estimated Total Cost:* ~€ 25 to get started for the first 5 years (for low volume).
+- **Pricing:** € 100 for a 5-year basic package.
+- *Estimated Total Cost:* € 100 to get started for the first 5 years (for low volume).
 
 **Option B: Fiskaly**
 Fiskaly offers a modern REST API that can handle the whole DEP storage, AES encryption, and FinanzOnline reporting. Since this project handles DEP natively via Git, much of Fiskaly's feature set is redundant here.

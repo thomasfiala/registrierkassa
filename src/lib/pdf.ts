@@ -33,7 +33,7 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
       doc.fontSize(16).text(headerText);
       const belegY = doc.y;
       doc.fontSize(10).text(`Belegnummer: ${receiptData.receiptNumber}`, 50, belegY);
-      doc.text(`Datum: ${new Date(receiptData.date).toLocaleString('de-AT')}`, 50, belegY, { align: 'right', width: contentWidth });
+      doc.text(`Datum: ${new Date(receiptData.date).toLocaleString('de-AT', { timeZone: config.timezone || 'Europe/Vienna' })}`, 50, belegY, { align: 'right', width: contentWidth });
       doc.y = belegY + 15;
       
       if (receiptData.isStorno) {

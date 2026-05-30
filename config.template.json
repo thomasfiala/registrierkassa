@@ -59,25 +59,25 @@
   ],
   "paymentMethods": [
     {
-      "appHeader": "FeWo Kassa",
+      "appHeader": "Registrierkassa",
       "name": "bar"
     },
     {
-      "appHeader": "FeWo Kassa",
+      "appHeader": "Registrierkassa",
       "name": "Überweisung"
     },
     {
-      "appHeader": "FeWo Kassa",
+      "appHeader": "Registrierkassa",
       "name": "SumUp",
       "feePercentage": 1.5,
       "feeTaxRate": "0%"
     },
     {
-      "appHeader": "FeWo Kassa",
+      "appHeader": "Registrierkassa",
       "name": "PayPal",
       "feePercentage": 2.5,
       "feeTaxRate": "0%"
     }
   ],
-  "appHeader": "FeWo Kassa"
+  "appHeader": "Registrierkassa"
 }

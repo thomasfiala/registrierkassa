@@ -163,13 +163,19 @@ Because this system already implements the Data Capture Log (DEP) and payload lo
 **1. Purchase a Cloud Certificate**
 Buy an "Online-Signatur" (e.g., a-sign RK Online) from a trusted provider. You will receive API credentials and a certificate serial number.
 
-**2. Generate your AES-256 Key**
-Generate a random 32-byte (256-bit) AES key locally. Save this in your `config.json` (`rksv.aesKey`). This encrypts your running turnover counter so it cannot be read in plain text from the QR code.
+**2. Generate your AES-256 Key & Prüfwert**
+You need a random 32-byte AES key (Base64 encoded) and a specific "Prüfwert" (checksum) to register the cash register in FinanzOnline. Generate both by running this command in your terminal:
+
+```bash
+node -e "const crypto = require('crypto'); const key = crypto.randomBytes(32).toString('base64'); const pruefwert = crypto.createHash('sha256').update(key, 'utf8').digest().subarray(0, 3).toString('base64').replace(/=/g, ''); console.log('\nAES-Key (Benutzerschlüssel): ' + key + '\nPrüfwert: ' + pruefwert + '\n');"
+```
+
+Save the generated `AES-Key` in your `config.json` under `rksv.aesKey`.
 
 **3. Register in FinanzOnline**
-Log into FinanzOnline and register:
-- **The Cash Register (Kassa):** Enter your "Kassen-ID" and upload the AES-256 key from Step 2.
-- **The Signature Device (Sicherheitseinrichtung):** Enter the serial number of your cloud certificate and select "HSM" (Hardware Security Module of a service provider).
+Log into FinanzOnline (section "Registrierkassen") and register:
+- **The Cash Register (Kassa):** Enter your "Kassen-ID", the generated **AES-Key** (Benutzerschlüssel), and the **Prüfwert** from Step 2.
+- **The Signature Device (Sicherheitseinrichtung):** Enter the serial number (Hex format) of your cloud certificate and select "HSM" (Hardware Security Module of a service provider).
 
 **4. Implement the API in your Code**
 In `src/lib/rksv.ts`, replace the stubs:

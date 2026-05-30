@@ -7,10 +7,21 @@ import crypto from 'crypto';
  * IV: Derived from Kassen-ID and Belegnummer.
  */
 export function encryptTurnover(turnoverCents: number, kassenId: string, receiptNumber: string, aesKeyBase64: string): string {
-  // STUB: Real implementation needs to format the turnover as an 8-byte big-endian buffer,
-  // derive the 16-byte IV from the receipt ID string via SHA-256, and encrypt it.
-  // For now, we return a dummy base64 string to satisfy the payload structure.
-  return Buffer.from(`ENCRYPTED_${turnoverCents}`).toString('base64');
+  // The turnover is encoded as an 8-byte big-endian buffer
+  const turnoverBuffer = Buffer.alloc(8);
+  turnoverBuffer.writeBigInt64BE(BigInt(turnoverCents));
+
+  // The IV is the first 16 bytes of the SHA-256 hash of Kassen-ID + Belegnummer
+  const ivString = kassenId + receiptNumber;
+  const hash = crypto.createHash('sha256').update(ivString, 'utf8').digest();
+  const iv = hash.subarray(0, 16);
+
+  const key = Buffer.from(aesKeyBase64, 'base64');
+
+  const cipher = crypto.createCipheriv('aes-256-ctr', key, iv);
+  const encrypted = Buffer.concat([cipher.update(turnoverBuffer), cipher.final()]);
+
+  return encrypted.toString('base64');
 }
 
 /**
@@ -28,7 +39,11 @@ export function buildRksvPayload(receiptData: any, config: any, previousHash: st
   });
 
   const dateFmt = new Date(receiptData.date).toISOString().replace(/Z$/, ''); // Needs specific RKSV format
-  const certSerial = "STUB_CERT_SERIAL"; // Extracted from the A-Trust/Fiskal signature card
+  const certSerial = config.rksv.certSerial; // Extracted from the A-Trust/Fiskal signature card
+  
+  if (!certSerial || certSerial === "STUB_CERT_SERIAL") {
+    throw new Error('Missing certificate serial number (certSerial) in config.rksv');
+  }
   
   // RKSV fields separated by underscore
   const payload = [

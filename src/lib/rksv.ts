@@ -38,9 +38,9 @@ export function buildRksvPayload(receiptData: any, config: any, previousHash: st
     else if (item.taxRate === '0%') taxes.null += item.price;
   });
 
-  const d = new Date(receiptData.date);
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  const dateFmt = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  // RKSV requires the local date/time string without offset: YYYY-MM-DDTHH:mm:ss
+  // If receiptData.date is from getCurrentTimezonedDate(), it looks like 2026-05-30T23:04:00+02:00
+  const dateFmt = receiptData.date.substring(0, 19);
   const certSerial = config.rksv.certSerial; // Extracted from the A-Trust/Fiskal signature card
   
   if (!certSerial || certSerial === "STUB_CERT_SERIAL") {

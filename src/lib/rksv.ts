@@ -6,13 +6,13 @@ import crypto from 'crypto';
  * Key: 32 bytes (base64 decoded from config.rksv.aesKey)
  * IV: Derived from Kassen-ID and Belegnummer.
  */
-export function encryptTurnover(turnoverCents: number, kassenId: string, receiptNumber: string, aesKeyBase64: string): string {
+export function encryptTurnover(turnoverCents: number, kassenId: string, receiptNumber: string, dateFmt: string, aesKeyBase64: string): string {
   // The turnover is encoded as an 8-byte big-endian buffer
   const turnoverBuffer = Buffer.alloc(8);
   turnoverBuffer.writeBigInt64BE(BigInt(turnoverCents));
 
-  // The IV is the first 16 bytes of the SHA-256 hash of Kassen-ID + Belegnummer
-  const ivString = kassenId + receiptNumber;
+  // The IV is the first 16 bytes of the SHA-256 hash of Kassen-ID + Belegnummer + Zeitstempel
+  const ivString = kassenId + receiptNumber + dateFmt;
   const hash = crypto.createHash('sha256').update(ivString, 'utf8').digest();
   const iv = hash.subarray(0, 16);
 
@@ -118,7 +118,7 @@ export async function signPayloadJWS(payload: string, config: any): Promise<stri
  * Hashes the JWS string to be used as the 'previousHash' for the next receipt.
  */
 export function hashJws(jwsString: string): string {
-  // RKSV requires SHA-256 hash of the JWS string, returning the first 8 bytes base64 encoded.
+  // RKSV requires SHA-256 hash of the JWS string, returning the first 8 bytes base64 encoded without padding.
   const hash = crypto.createHash('sha256').update(jwsString, 'utf8').digest();
-  return hash.subarray(0, 8).toString('base64');
+  return hash.subarray(0, 8).toString('base64').replace(/=/g, '');
 }

@@ -26,15 +26,16 @@ async function createSystemBeleg(type: 'Startbeleg' | 'Monatsbeleg' | 'Jahresbel
     const db = await readDb();
     
     const receiptId = crypto.randomUUID();
-    const receiptNumber = `${type.toUpperCase()}-${Date.now()}`;
+    const receiptNumber = `${type.toUpperCase().replace(/[^A-Z0-9]/g, '')}${Date.now()}`;
     const date = getCurrentTimezonedDate();
+    const dateFmt = date.substring(0, 19);
     
     const items = [{ name: type, price: 0, taxRate: '0%', quantity: 1 }];
     const totalAmount = 0;
     
     const newTurnoverCents = Math.round((db.currentTurnover || 0) * 100);
-    const encryptedTurnover = encryptTurnover(newTurnoverCents, config.rksv.kassenID, receiptNumber, config.rksv.aesKey);
-    const previousHash = db.receipts.length === 0 ? Buffer.from(config.rksv.kassenID).toString('base64') : db.lastReceiptHash; 
+    const encryptedTurnover = encryptTurnover(newTurnoverCents, config.rksv.kassenID, receiptNumber, dateFmt, config.rksv.aesKey);
+    const previousHash = db.receipts.length === 0 ? Buffer.from(config.rksv.kassenID).toString('base64url') : db.lastReceiptHash; 
     
     const rksvPayload = buildRksvPayload({ receiptNumber, date, items }, config, previousHash, encryptedTurnover);
     const jwsString = await signPayloadJWS(rksvPayload, config);

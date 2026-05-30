@@ -35,11 +35,16 @@ async function createSystemBeleg(type: 'Startbeleg' | 'Monatsbeleg' | 'Jahresbel
     
     const newTurnoverCents = Math.round((db.currentTurnover || 0) * 100);
     const encryptedTurnover = encryptTurnover(newTurnoverCents, config.rksv.kassenID, receiptNumber, dateFmt, config.rksv.aesKey);
-    const previousHash = db.receipts.length === 0 ? Buffer.from(config.rksv.kassenID).toString('base64url') : db.lastReceiptHash; 
     
-    const rksvPayload = buildRksvPayload({ receiptNumber, date, items }, config, previousHash, encryptedTurnover);
-    const jwsPayloadB64 = Buffer.from(rksvPayload, 'utf8').toString('base64url');
-    const jwsString = await signPayloadJWS(jwsPayloadB64, config);
+    // The initial Verkettungswert for the Startbeleg is the SHA-256 hash of the Kassen-ID
+    let previousHash = db.lastReceiptHash;
+    if (db.receipts.length === 0) {
+      const hash = crypto.createHash('sha256').update(config.rksv.kassenID, 'utf8').digest();
+      previousHash = hash.subarray(0, 8).toString('base64').replace(/=/g, '');
+    }
+    
+    const rksvPayload = buildRksvPayload({ receiptNumber, date, items }, config, previousHash!, encryptedTurnover);
+    const jwsString = await signPayloadJWS(rksvPayload, config);
     const newHash = hashJws(jwsString);
 
     const receiptData = {

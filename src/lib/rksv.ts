@@ -21,7 +21,7 @@ export function encryptTurnover(turnoverCents: number, kassenId: string, receipt
   const cipher = crypto.createCipheriv('aes-256-ctr', key, iv);
   const encrypted = Buffer.concat([cipher.update(turnoverBuffer), cipher.final()]);
 
-  return encrypted.toString('base64');
+  return encrypted.toString('base64').replace(/=/g, '');
 }
 
 /**

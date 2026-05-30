@@ -37,7 +37,7 @@ async function createSystemBeleg(type: 'Startbeleg' | 'Monatsbeleg' | 'Jahresbel
     const previousHash = db.lastReceiptHash || "ICAgICAgICAgICg="; 
     
     const rksvPayload = buildRksvPayload({ receiptNumber, date, items }, config, previousHash, encryptedTurnover);
-    const jwsString = signPayloadJWS(rksvPayload);
+    const jwsString = await signPayloadJWS(rksvPayload, config);
     const newHash = hashJws(jwsString);
 
     const receiptData = {

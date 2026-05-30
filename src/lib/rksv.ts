@@ -99,12 +99,17 @@ export async function signPayloadJWS(payload: string, config: any): Promise<stri
 
   const result = await response.json();
   
-  // A-Trust typically returns {"JWS": "..."} in their JSON response
-  if (result.JWS) {
-    return result.JWS;
+  // A-Trust typically returns {"JWS": "..."} or {"result": "..."}
+  if (result && typeof result === 'object') {
+    if (result.JWS) return result.JWS;
+    if (result.result) return result.result;
   }
   
-  return result; // Fallback if the response is directly the string or has a different structure
+  if (typeof result === 'string') {
+    return result;
+  }
+
+  throw new Error(`Unexpected A-Trust HSM response format: ${JSON.stringify(result)}`);
 }
 
 /**

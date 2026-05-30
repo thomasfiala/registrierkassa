@@ -38,7 +38,9 @@ export function buildRksvPayload(receiptData: any, config: any, previousHash: st
     else if (item.taxRate === '0%') taxes.null += item.price;
   });
 
-  const dateFmt = new Date(receiptData.date).toISOString().replace(/Z$/, ''); // Needs specific RKSV format
+  const d = new Date(receiptData.date);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const dateFmt = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   const certSerial = config.rksv.certSerial; // Extracted from the A-Trust/Fiskal signature card
   
   if (!certSerial || certSerial === "STUB_CERT_SERIAL") {

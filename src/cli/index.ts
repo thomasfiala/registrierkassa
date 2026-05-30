@@ -38,7 +38,8 @@ async function createSystemBeleg(type: 'Startbeleg' | 'Monatsbeleg' | 'Jahresbel
     const previousHash = db.receipts.length === 0 ? Buffer.from(config.rksv.kassenID).toString('base64url') : db.lastReceiptHash; 
     
     const rksvPayload = buildRksvPayload({ receiptNumber, date, items }, config, previousHash, encryptedTurnover);
-    const jwsString = await signPayloadJWS(rksvPayload, config);
+    const jwsPayloadB64 = Buffer.from(rksvPayload, 'utf8').toString('base64url');
+    const jwsString = await signPayloadJWS(jwsPayloadB64, config);
     const newHash = hashJws(jwsString);
 
     const receiptData = {

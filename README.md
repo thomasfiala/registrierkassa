@@ -1,5 +1,11 @@
 # Registrierkassa 🇦🇹
 
+> **⚠️ DISCLAIMER / NO WARRANTY:** 
+> This software is provided "as is", without warranty of any kind, express or implied. There is no guarantee that this code functions correctly, securely, or complies fully with Austrian fiscal laws (RKSV). Use at your own risk. The author(s) are not responsible for any legal or financial consequences resulting from the use of this software.
+>
+> **🤖 AI AUTHORSHIP:** 
+> Please note that significant portions of this code were written by an AI assistant (Sunny / OpenClaw) and may contain errors, logical bugs, or non-standard implementations.
+
 An open-source, Austrian RKSV-compliant Point of Sale (POS) / Cash Register system. 
 
 Built with Next.js and Node.js, this project takes a unique approach to the mandatory "Datenerfassungsprotokoll" (DEP-7 audit trail) by backing the data layer with an **immutable Git repository**. Every invoice generates a JSON entry and a PDF, which are cryptographically chained and committed to Git automatically.

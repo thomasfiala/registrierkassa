@@ -6,13 +6,13 @@ import crypto from 'crypto';
  * Key: 32 bytes (base64 decoded from config.rksv.aesKey)
  * IV: Derived from Kassen-ID and Belegnummer.
  */
-export function encryptTurnover(turnoverCents: number, kassenId: string, receiptNumber: string, dateFmt: string, aesKeyBase64: string): string {
+export function encryptTurnover(turnoverCents: number, kassenId: string, receiptNumber: string, aesKeyBase64: string): string {
   // The turnover is encoded as an 8-byte big-endian buffer
   const turnoverBuffer = Buffer.alloc(8);
   turnoverBuffer.writeBigInt64BE(BigInt(turnoverCents));
 
-  // The IV is the first 16 bytes of the SHA-256 hash of Kassen-ID + Belegnummer + Zeitstempel
-  const ivString = kassenId + receiptNumber + dateFmt;
+  // The IV is the first 16 bytes of the SHA-256 hash of Kassen-ID + Belegnummer
+  const ivString = kassenId + receiptNumber;
   const hash = crypto.createHash('sha256').update(ivString, 'utf8').digest();
   const iv = hash.subarray(0, 16);
 
@@ -21,7 +21,7 @@ export function encryptTurnover(turnoverCents: number, kassenId: string, receipt
   const cipher = crypto.createCipheriv('aes-256-ctr', key, iv);
   const encrypted = Buffer.concat([cipher.update(turnoverBuffer), cipher.final()]);
 
-  return encrypted.toString('base64').replace(/=/g, '');
+  return encrypted.toString('base64');
 }
 
 /**
@@ -103,12 +103,14 @@ export async function signPayloadJWS(payload: string, config: any): Promise<stri
   
   // A-Trust typically returns {"JWS": "..."} or {"result": "..."}
   if (result && typeof result === 'object') {
-    if (result.JWS) return result.JWS;
-    if (result.result) return result.result;
+    let jws = result.JWS || result.result;
+    if (jws && typeof jws === 'string') {
+      return jws; // Return the exact unmodified JWS string from A-Trust
+    }
   }
   
   if (typeof result === 'string') {
-    return result;
+    return result; // Return the exact unmodified JWS string from A-Trust
   }
 
   throw new Error(`Unexpected A-Trust HSM response format: ${JSON.stringify(result)}`);
@@ -118,7 +120,22 @@ export async function signPayloadJWS(payload: string, config: any): Promise<stri
  * Hashes the JWS string to be used as the 'previousHash' for the next receipt.
  */
 export function hashJws(jwsString: string): string {
-  // RKSV requires SHA-256 hash of the JWS string, returning the first 8 bytes base64 encoded without padding.
+  // RKSV requires SHA-256 hash of the ENTIRE previous JWS compact representation string!
   const hash = crypto.createHash('sha256').update(jwsString, 'utf8').digest();
-  return hash.subarray(0, 8).toString('base64').replace(/=/g, '');
+  return hash.subarray(0, 8).toString('base64');
+}
+
+/**
+ * Converts a JWS compact representation (from A-Trust) into the RKSV QR Code representation.
+ * JWS: Base64Url(Header) . Base64Url(Payload) . Base64Url(Signature)
+ * QR-Code: PlainText(Payload) + "_" + Base64(Signature)
+ */
+export function getQrCodeRepresentation(jwsString: string): string {
+  const parts = jwsString.split('.');
+  if (parts.length !== 3) {
+    return jwsString;
+  }
+  const payloadStr = Buffer.from(parts[1], 'base64url').toString('utf8');
+  const signatureBase64 = Buffer.from(parts[2], 'base64url').toString('base64');
+  return `${payloadStr}_${signatureBase64}`;
 }

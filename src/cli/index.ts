@@ -34,13 +34,13 @@ async function createSystemBeleg(type: 'Startbeleg' | 'Monatsbeleg' | 'Jahresbel
     const totalAmount = 0;
     
     const newTurnoverCents = Math.round((db.currentTurnover || 0) * 100);
-    const encryptedTurnover = encryptTurnover(newTurnoverCents, config.rksv.kassenID, receiptNumber, dateFmt, config.rksv.aesKey);
+    const encryptedTurnover = encryptTurnover(newTurnoverCents, config.rksv.kassenID, receiptNumber, config.rksv.aesKey);
     
     // The initial Verkettungswert for the Startbeleg is the SHA-256 hash of the Kassen-ID
     let previousHash = db.lastReceiptHash;
     if (db.receipts.length === 0) {
       const hash = crypto.createHash('sha256').update(config.rksv.kassenID, 'utf8').digest();
-      previousHash = hash.subarray(0, 8).toString('base64').replace(/=/g, '');
+      previousHash = hash.subarray(0, 8).toString('base64');
     }
     
     const rksvPayload = buildRksvPayload({ receiptNumber, date, items }, config, previousHash!, encryptedTurnover);

@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import QRCode from 'qrcode';
 import { getConfig } from './config';
+import { getQrCodeRepresentation } from './rksv';
 
 export async function generateInvoicePdf(receiptData: any, outputPath: string) {
   return new Promise(async (resolve, reject) => {
@@ -69,8 +70,8 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
         doc.text(`${qty}`, 50, y, { width: 40 });
         doc.text(`${item.name}`, 100, y, { width: 200 });
         doc.text(rateStr, 300, y, { width: 40 });
-        doc.text(`€ ${item.price.toFixed(2)}`, 340, y, { width: 90, align: 'right' });
-        doc.text(`€ ${total.toFixed(2)}`, 430, y, { width: 115, align: 'right' });
+        doc.text(`€ ${item.price.toFixed(2).replace('.', ',')}`, 340, y, { width: 90, align: 'right' });
+        doc.text(`€ ${total.toFixed(2).replace('.', ',')}`, 430, y, { width: 115, align: 'right' });
         y += 15;
       });
       doc.y = y + 20;
@@ -88,13 +89,13 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
         sepaHeight = 100; // text + image
       }
 
-      doc.fontSize(14).text(`Gesamtbetrag: € ${receiptData.totalAmount.toFixed(2)}`, 50, summaryY, { align: 'right', width: contentWidth });
+      doc.fontSize(14).text(`Gesamtbetrag: € ${receiptData.totalAmount.toFixed(2).replace('.', ',')}`, 50, summaryY, { align: 'right', width: contentWidth });
       let currentRightY = summaryY + 18;
       
       doc.fontSize(10);
       Object.keys(taxes).forEach(rate => {
           if (taxes[rate] > 0) {
-              doc.text(`darin enthalten ${rate} USt: € ${taxes[rate].toFixed(2)}`, 50, currentRightY, { align: 'right', width: contentWidth });
+              doc.text(`darin enthalten ${rate} USt: € ${taxes[rate].toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
               currentRightY += 15;
           }
       });
@@ -121,7 +122,8 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
       if (receiptData.type === 'final' && receiptData.rksv?.jws && !receiptData.isProformaPreview) {
         doc.moveDown(1);
         doc.text('Maschinenlesbarer Code (RKSV):', 50, doc.y, { align: 'center', width: contentWidth });
-        const qrBuffer = await QRCode.toBuffer(receiptData.rksv.jws, { errorCorrectionLevel: 'M', margin: 2 });
+        const qrContent = getQrCodeRepresentation(receiptData.rksv.jws);
+        const qrBuffer = await QRCode.toBuffer(qrContent, { errorCorrectionLevel: 'M', margin: 2 });
         const qrSize = 120;
         doc.image(qrBuffer, (pageWidth - qrSize) / 2, doc.y + 10, { width: qrSize });
       }

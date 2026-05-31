@@ -72,11 +72,16 @@ export async function POST(request: Request) {
     
     if (!isProforma) {
       const newTurnoverCents = Math.round((db.currentTurnover + totalAmount) * 100);
+      const dateFmt = getCurrentTimezonedDate().substring(0, 19);
       const encryptedTurnover = encryptTurnover(newTurnoverCents, config.rksv.kassenID, receiptNumber, config.rksv.aesKey);
-      const previousHash = db.lastReceiptHash || "ICAgICAgICAgICg="; 
+      let previousHash = db.lastReceiptHash;
+      if (!previousHash) {
+        const hash = crypto.createHash('sha256').update(config.rksv.kassenID, 'utf8').digest();
+        previousHash = hash.subarray(0, 8).toString('base64');
+      }
       
       rksvPayload = buildRksvPayload({ receiptNumber, date: getCurrentTimezonedDate(), items: body.items }, config, previousHash, encryptedTurnover);
-      jwsString = signPayloadJWS(rksvPayload);
+      jwsString = await signPayloadJWS(rksvPayload, config);
       newHash = hashJws(jwsString);
     }
 

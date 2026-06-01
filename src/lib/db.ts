@@ -110,7 +110,25 @@ export async function getPdfPath(receipt: any) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
-  return path.join(dirPath, `${receipt.receiptNumber}.pdf`);
+
+  let fileName = receipt.receiptNumber;
+
+  // 1. Add specific beleg types to filename
+  if (receipt.isSystemBeleg && receipt.systemType) {
+    fileName = `${receipt.systemType}_${fileName}`;
+  }
+
+  // 2. Add customer name to filename if specified
+  if (receipt.customerNameAndAddress) {
+    const firstLine = receipt.customerNameAndAddress.split('\n')[0].trim();
+    if (firstLine) {
+      // Basic sanitization for filename
+      const sanitizedName = firstLine.replace(/[^a-z0-9äöüß\s]/gi, '').replace(/\s+/g, '_');
+      fileName = `${fileName}_${sanitizedName}`;
+    }
+  }
+
+  return path.join(dirPath, `${fileName}.pdf`);
 }
 
 export async function deleteProforma(id: string) {

@@ -10,6 +10,9 @@ An open-source, Austrian RKSV-compliant Point of Sale (POS) / Cash Register syst
 
 Built with Next.js and Node.js, this project takes a unique approach to the mandatory "Datenerfassungsprotokoll" (DEP-7 audit trail) by backing the data layer with an **immutable Git repository**. Every invoice generates a JSON entry and a PDF, which are cryptographically chained and committed to Git automatically.
 
+<img width="1135" height="1006" alt="image" src="https://github.com/user-attachments/assets/99eb680d-d8dc-4446-8083-83110c1647d4" />
+
+
 ## ✨ Key Advantages
 
 - **Open Source & Low Cost:** Completely free from expensive POS subscriptions or vendor lock-in. Your only running cost is the raw cryptographic signatures (e.g., ~€20/year via A-Trust API).

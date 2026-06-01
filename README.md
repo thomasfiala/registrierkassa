@@ -4,7 +4,7 @@
 > This software is provided "as is", without warranty of any kind, express or implied. There is no guarantee that this code functions correctly, securely, or complies fully with Austrian fiscal laws (RKSV). Use at your own risk. The author(s) are not responsible for any legal or financial consequences resulting from the use of this software.
 >
 > **🤖 AI AUTHORSHIP:** 
-> Please note that significant portions of this code were written by an AI assistant (Sunny / OpenClaw) and may contain errors, logical bugs, or non-standard implementations.
+> Please note that significant portions of this code were written by an AI assistant (OpenClaw / Google Gemini) and may contain errors, logical bugs, or non-standard implementations.
 
 An open-source, Austrian RKSV-compliant Point of Sale (POS) / Cash Register system. 
 
@@ -12,7 +12,7 @@ Built with Next.js and Node.js, this project takes a unique approach to the mand
 
 ## ✨ Key Advantages
 
-- **Open Source & Low Cost:** Completely free from expensive POS subscriptions or vendor lock-in. Your only running cost is the raw cryptographic signatures (e.g., ~$5/year via A-Trust API).
+- **Open Source & Low Cost:** Completely free from expensive POS subscriptions or vendor lock-in. Your only running cost is the raw cryptographic signatures (e.g., ~€20/year via A-Trust API).
 - **Self-Hosted Privacy:** Run it on your own hardware (Raspberry Pi, local PC) or a cheap VPS. Your financial data never sits on a third-party server.
 - **Infinite Extendability:** Built on modern standard web technologies (React/Next.js/Node.js), making it incredibly easy to customize to your exact business workflow.
 - **CLI Automation:** Features a robust command-line interface, allowing you to trigger receipts, automate zero-receipts, or pipe data to other tools natively.
@@ -20,11 +20,11 @@ Built with Next.js and Node.js, this project takes a unique approach to the mand
 - **SEPA QR Codes:** Automatically generate and print EPC SEPA QR codes on invoices when paying via bank transfer (Überweisung) for fast, error-free customer payments.
 - **Payment Method Fees:** Configure percentage-based fees (e.g., for Stripe or credit cards) that automatically calculate and apply the correct tax rate to the invoice total.
 - **Automatic Storage & Backup:** The Git-backed database automatically creates immutable, timestamped revisions of every single transaction and pushes them to a remote backup repository without any manual intervention.
-- **OpenClaw AI Integration:** Includes a ready-to-use OpenClaw skill (`skills/registrierkassa/SKILL.md`), allowing your AI assistant to manage receipts, send invoices via email, and handle recurring bureaucratic reminders (like scanning the annual `Jahresbeleg`).
+- **OpenClaw AI Integration:** Includes a ready-to-use OpenClaw skill (`SKILL.md`), allowing your AI assistant to manage receipts, send invoices via email, and handle recurring bureaucratic reminders (like scanning the annual `Jahresbeleg`).
 
 ## 🏗 Architecture
 
-1. **Next.js Web Frontend:** An English UI providing a simple POS cart system. Supports configurable item templates, dynamic tax rates, Proforma, and Final invoices.
+1. **Next.js Web Frontend:** A UI providing a simple POS cart system. Supports configurable item templates, dynamic tax rates, Proforma, and Final invoices.
 2. **Next.js API Routes:** Processes frontend requests, handles the cryptographic chain logic, and generates standard-compliant German PDFs.
 3. **Node.js CLI:** A terminal interface specifically for triggering RKSV mandatory zero-receipts (`Startbeleg`, `Monatsbeleg`, `Jahresbeleg`, `Tagesbeleg`, `Nullbeleg`).
 4. **Git-Backed DB:** The `db.json` and generated PDFs reside in a *separate* folder that is automatically initialized as a Git repository. Every receipt triggers an atomic `git commit`, natively satisfying RKSV immutability and version control requirements.
@@ -45,7 +45,7 @@ This tool will guide you through setting up your business details, taxes, and da
 
 Alternatively, you can manually copy the configuration template:
 ```bash
-cp config.template.json config.json
+cp config.template.json ~/.registrierkassa/config.json
 ```
 Edit `config.json` to include:
 - `business`: Your legal company name, address, and UID (VAT number).
@@ -56,7 +56,7 @@ Edit `config.json` to include:
 - `rksv`: Your Kassen-ID and AES-256 key for the encrypted turnover counter.
 
 ### 3. Database Initialization
-You do not need to manually create the database. The system will read the `dbGitRepoPath` from your `config.json` (defaults to `db`, which resolves to `~/.registrierkassa/db`), create the directory, inject `db.template.json`, and run `git init` automatically on the first transaction.
+You do not need to manually create the database. The system will read the `dbGitRepoPath` from your `~/.registrierkassa/config.json` (defaults to `db`, which resolves to `~/.registrierkassa/db`), create the directory, inject `db.template.json`, and run `git init` automatically on the first transaction.
 
 ### 4. Git Backup Integration (Optional)
 To ensure your receipts and database are safe against hardware failures, the app can automatically push every new receipt (git commit) to a remote Git repository (like GitHub or GitLab).
@@ -208,6 +208,3 @@ Fiskaly offers a modern REST API that can handle the whole DEP storage, AES encr
 
 **Option C: GlobalTrust**
 Similar to A-Trust. Usually around € 40 for a 3-year certificate including a set amount of cloud signatures.
-
-## 📄 PDF Generation
-Invoices are dynamically rendered via `pdfkit`. The script automatically regroups line items by tax rate at the footer, calculates Net, VAT, and Gross totals, and appends the RKSV QR Code for final receipts.

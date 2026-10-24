@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 
 type Item = { name: string; price: number; taxRate: string; id: number; quantity: number };
 type Template = { name: string; price: number; taxRate: string };
-type Receipt = { id: string; receiptNumber: string; date: string; type: string; totalAmount: number; customerNameAndAddress?: string; customerEmail?: string; isStorno?: boolean; stornoed?: boolean; stornoRef?: string; convertedToFinal?: boolean; items: any[] };
+type Receipt = { id: string; receiptNumber: string; date: string; type: string; totalAmount: number; customerNameAndAddress?: string; customerEmail?: string; isStorno?: boolean; stornoed?: boolean; stornoRef?: string; convertedToFinal?: boolean; items: any[]; paymentMethod?: string; customMessage?: string };
 
 export default function Home() {
   const [items, setItems] = useState<Item[]>([]);
@@ -173,9 +173,31 @@ export default function Home() {
     setItems(r.items.map((i: any) => ({...i, id: Date.now() + Math.random()})));
     setCustomerInfo(r.customerNameAndAddress || '');
     setCustomerEmail(r.customerEmail || '');
+    if (r.customMessage !== undefined) setCustomMessage(r.customMessage);
+    if (r.paymentMethod) setPaymentMethod(r.paymentMethod);
     setType('final');
     setFromProformaId(r.id);
     setStatus(`Loaded Proforma ${r.receiptNumber}. You can now save it as a final invoice.`);
+  };
+
+  const handleLoadCancelled = (r: Receipt) => {
+    const sourceReceipt = (r.isStorno && r.stornoRef)
+      ? receipts.find(x => x.receiptNumber === r.stornoRef) || r
+      : r;
+    const isSourceStorno = sourceReceipt.isStorno;
+
+    setItems(sourceReceipt.items.map((i: any) => ({
+      ...i,
+      id: Date.now() + Math.random(),
+      price: isSourceStorno ? Math.abs(i.price) : i.price
+    })));
+    setCustomerInfo(sourceReceipt.customerNameAndAddress || '');
+    setCustomerEmail(sourceReceipt.customerEmail || '');
+    if (sourceReceipt.customMessage !== undefined) setCustomMessage(sourceReceipt.customMessage);
+    if (sourceReceipt.paymentMethod) setPaymentMethod(sourceReceipt.paymentMethod);
+    setType('final');
+    setFromProformaId(undefined);
+    setStatus(`Rechnung ${r.receiptNumber} geladen. Sie können diese bearbeiten und neu erstellen.`);
   };
 
   const handleDeleteProforma = async (id: string) => {
@@ -191,7 +213,16 @@ export default function Home() {
     const res = await fetch('/api/invoice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: inverseItems, type: 'final', customerNameAndAddress: r.customerNameAndAddress, customMessage, paymentMethod, isStorno: true, stornoRef: r.receiptNumber })
+      body: JSON.stringify({
+        items: inverseItems,
+        type: 'final',
+        customerNameAndAddress: r.customerNameAndAddress,
+        customerEmail: r.customerEmail,
+        customMessage: r.customMessage,
+        paymentMethod: r.paymentMethod,
+        isStorno: true,
+        stornoRef: r.receiptNumber
+      })
     });
     if (res.ok) {
       setStatus(`Storno created.`);
@@ -215,13 +246,31 @@ export default function Home() {
   };
 
   const openEmailModal = (r: Receipt) => {
-    const salutation = r.customerNameAndAddress ? r.customerNameAndAddress.split('\n')[0] : 'Kunde';
-    const defaultSubject = emailTexts.subject ? `${emailTexts.subject} ${r.receiptNumber} (${new Date(r.date).toLocaleDateString('de-AT')})` : `Rechnung ${r.receiptNumber}`;
-    const defaultBody = `Hallo ${salutation},\n\n${emailTexts.body || 'anbei finden Sie Ihre Rechnung.'}`;
+    const origReceipt = (r.isStorno && r.stornoRef)
+      ? receipts.find(x => x.receiptNumber === r.stornoRef)
+      : undefined;
+
+    const customerInfoStr = r.customerNameAndAddress || origReceipt?.customerNameAndAddress || '';
+    const salutation = customerInfoStr ? customerInfoStr.split('\n')[0] : 'Kunde';
+    const toEmail = r.customerEmail || origReceipt?.customerEmail || '';
+
+    let defaultSubject = '';
+    let defaultBody = '';
+
+    if (r.isStorno) {
+      defaultSubject = `Storno ${r.receiptNumber} (${new Date(r.date).toLocaleDateString('de-AT')})`;
+      defaultBody = `Hallo ${salutation},\n\nanbei finden Sie Ihren Stornobeleg.`;
+    } else {
+      defaultSubject = emailTexts.subject
+        ? `${emailTexts.subject} ${r.receiptNumber} (${new Date(r.date).toLocaleDateString('de-AT')})`
+        : `Rechnung ${r.receiptNumber}`;
+      defaultBody = `Hallo ${salutation},\n\n${emailTexts.body || 'anbei finden Sie Ihre Rechnung.'}`;
+    }
+
     setEmailModal({
       open: true,
       receiptNumber: r.receiptNumber,
-      to: r.customerEmail || '',
+      to: toEmail,
       subject: defaultSubject,
       text: defaultBody,
       status: ''
@@ -446,9 +495,10 @@ export default function Home() {
                 <td style={{ padding: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <a href={`/api/pdf?file=${r.receiptNumber}.pdf`} target="_blank" rel="noreferrer" style={{ color: '#0070f3', textDecoration: 'none', fontWeight: 'bold', padding: '0.25rem 0.5rem', border: '1px solid #0070f3', borderRadius: '4px' }}>PDF</a>
                   {r.type === 'proforma' && <button onClick={() => handleLoadProforma(r)} style={{ padding: '0.25rem 0.5rem', cursor: 'pointer', background: '#fff', border: '1px solid #ccc', borderRadius: '4px' }}>Laden</button>}
+                  {(r.stornoed || r.isStorno) && <button onClick={() => handleLoadCancelled(r)} style={{ padding: '0.25rem 0.5rem', cursor: 'pointer', background: '#fff', border: '1px solid #ccc', borderRadius: '4px' }}>Laden</button>}
                   {r.type === 'proforma' && <button onClick={() => handleDeleteProforma(r.id)} style={{ padding: '0.25rem 0.5rem', cursor: 'pointer', background: '#fff', border: '1px solid #d9534f', color: '#d9534f', borderRadius: '4px' }}>Löschen</button>}
                   {r.type === 'final' && !r.isStorno && !r.stornoed && <button onClick={() => handleStorno(r)} style={{ padding: '0.25rem 0.5rem', cursor: 'pointer', background: '#fff', border: '1px solid #d9534f', color: '#d9534f', borderRadius: '4px' }}>Storno</button>}
-                  {!r.isStorno && <button onClick={() => openEmailModal(r)} style={{ padding: '0.25rem 0.5rem', cursor: 'pointer', background: '#fff', border: '1px solid #ccc', borderRadius: '4px' }}>E-Mail senden</button>}
+                  <button onClick={() => openEmailModal(r)} style={{ padding: '0.25rem 0.5rem', cursor: 'pointer', background: '#fff', border: '1px solid #ccc', borderRadius: '4px' }}>E-Mail senden</button>
                 </td>
               </tr>
             ))}

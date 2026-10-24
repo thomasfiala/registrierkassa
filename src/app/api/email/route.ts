@@ -41,6 +41,10 @@ export async function POST(request: Request) {
       },
     });
 
+    const attachmentFilename = receipt.isStorno
+      ? `Storno_${receiptNumber}.pdf`
+      : `Rechnung_${receiptNumber}.pdf`;
+
     // Send the email
     await transporter.sendMail({
       from: config.emailSettings.from || config.emailSettings.user,
@@ -49,7 +53,7 @@ export async function POST(request: Request) {
       text,
       attachments: [
         {
-          filename: `Rechnung_${receiptNumber}.pdf`,
+          filename: attachmentFilename,
           path: pdfPath,
           contentType: 'application/pdf',
         },

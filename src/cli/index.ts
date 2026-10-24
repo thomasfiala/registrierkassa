@@ -212,11 +212,14 @@ async function sendEmailCommand(receiptNumber: string, emailTo: string) {
     if(!receipt) throw new Error("Receipt not found");
     const pdfPath = await require('../lib/db').getPdfPath(receipt);
     const config = getConfig();
+    const isStorno = receipt.isStorno;
+    const subject = isStorno ? `Storno ${receiptNumber}` : config.emailTexts.subject;
+    const body = isStorno ? `Anbei erhalten Sie Ihren Stornobeleg als PDF-Dokument.` : config.emailTexts.body;
     await sendEmail({
       to: emailTo,
-      subject: config.emailTexts.subject,
-      text: config.emailTexts.body,
-      attachments: [{ filename: 'Rechnung.pdf', path: pdfPath }]
+      subject: subject,
+      text: body,
+      attachments: [{ filename: isStorno ? `Storno_${receiptNumber}.pdf` : `Rechnung_${receiptNumber}.pdf`, path: pdfPath }]
     }, config);
     console.log('Email sent.');
   } catch (err) {

@@ -4,17 +4,19 @@ A CLI and systemd-managed service for an Austrian RKSV-compliant cash register.
 
 ## Commands
 
-- `npm run cli setup` - Interactive setup and configuration.
-- `npm run cli create-receipt` - Interactively create a receipt.
-- `npm run cli list` - List receipts.
-- `npm run cli storno <id>` - Storno receipt.
-- `npm run cli email <id> <address>` - Send email.
+The CLI is available globally via the `kassa` command (wrapper located at `~/Scripts/kassa`).
+
+- `kassa setup` - Interactive setup and configuration.
+- `kassa create-receipt` - Interactively create a receipt.
+- `kassa list` - List receipts.
+- `kassa storno <id>` - Storno receipt.
+- `kassa email <id> <address>` - Send email.
 
 Runs as a systemd service on port 1235.
 
 ## Features & Capabilities
 
-- **Interactive Setup:** `npm run cli setup` handles generating the initial configuration.
+- **Interactive Setup:** `kassa setup` handles generating the initial configuration.
 - **SEPA QR Codes:** If the user configures their IBAN/BIC, the system automatically prints an EPC SEPA QR code on PDFs for "Überweisung" (bank transfer) payments.
 - **Payment Method Fees:** Allows configuring percentage-based fees (with associated tax rates) for specific payment methods (e.g., credit cards). These are automatically added to the invoice total.
 

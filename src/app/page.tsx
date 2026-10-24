@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 
 type Item = { name: string; price: number; taxRate: string; id: number; quantity: number };
 type Template = { name: string; price: number; taxRate: string };
-type Receipt = { id: string; receiptNumber: string; date: string; type: string; totalAmount: number; customerNameAndAddress?: string; customerEmail?: string; isStorno?: boolean; stornoed?: boolean; stornoRef?: string; convertedToFinal?: boolean; items: any[]; paymentMethod?: string; customMessage?: string };
+type Receipt = { id: string; receiptNumber: string; date: string; type: string; totalAmount: number; customerNameAndAddress?: string; customerEmail?: string; isStorno?: boolean; stornoed?: boolean; stornoRef?: string; convertedToFinal?: boolean; items: any[]; paymentMethod?: string; customMessage?: string; depositName?: string; depositAmount?: number; subtotalAmount?: number };
 
 export default function Home() {
   const [items, setItems] = useState<Item[]>([]);
@@ -13,6 +13,8 @@ export default function Home() {
   const [customName, setCustomName] = useState('');
   const [customPrice, setCustomPrice] = useState('');
   const [customTax, setCustomTax] = useState('20%');
+  const [depositName, setDepositName] = useState('Anzahlung');
+  const [depositAmount, setDepositAmount] = useState('');
   const [customerInfo, setCustomerInfo] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customMessage, setCustomMessage] = useState('');
@@ -94,9 +96,13 @@ export default function Home() {
     }
 
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const depositVal = parseFloat(depositAmount) || 0;
+    const isDepositSet = Math.abs(depositVal) > 0.0001;
+    const remainingBase = isDepositSet ? (subtotal - depositVal) : subtotal;
+
     const selectedMethod = paymentMethodsData.find(m => m.name === paymentMethod);
-    const feeAmount = (selectedMethod?.feePercentage && selectedMethod.feePercentage > 0) 
-      ? subtotal * (selectedMethod.feePercentage / 100) 
+    const feeAmount = (selectedMethod?.feePercentage && selectedMethod.feePercentage > 0 && remainingBase > 0) 
+      ? remainingBase * (selectedMethod.feePercentage / 100) 
       : 0;
 
     const finalItems = [...items];
@@ -114,7 +120,17 @@ export default function Home() {
     const res = await fetch('/api/invoice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: finalItems, type, customerNameAndAddress: customerInfo, customerEmail, customMessage, paymentMethod, fromProformaId })
+      body: JSON.stringify({
+        items: finalItems,
+        type,
+        customerNameAndAddress: customerInfo,
+        customerEmail,
+        customMessage,
+        paymentMethod,
+        depositName: isDepositSet ? (depositName || 'Anzahlung') : undefined,
+        depositAmount: isDepositSet ? depositVal : undefined,
+        fromProformaId
+      })
     });
     
     const data = await res.json();
@@ -123,6 +139,8 @@ export default function Home() {
       setItems([]);
       setCustomerInfo('');
       setCustomerEmail('');
+      setDepositName('Anzahlung');
+      setDepositAmount('');
       setFromProformaId(undefined);
       loadReceipts();
     } else {
@@ -137,9 +155,13 @@ export default function Home() {
     }
 
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const depositVal = parseFloat(depositAmount) || 0;
+    const isDepositSet = Math.abs(depositVal) > 0.0001;
+    const remainingBase = isDepositSet ? (subtotal - depositVal) : subtotal;
+
     const selectedMethod = paymentMethodsData.find(m => m.name === paymentMethod);
-    const feeAmount = (selectedMethod?.feePercentage && selectedMethod.feePercentage > 0) 
-      ? subtotal * (selectedMethod.feePercentage / 100) 
+    const feeAmount = (selectedMethod?.feePercentage && selectedMethod.feePercentage > 0 && remainingBase > 0) 
+      ? remainingBase * (selectedMethod.feePercentage / 100) 
       : 0;
 
     const finalItems = [...items];
@@ -157,7 +179,17 @@ export default function Home() {
     const res = await fetch('/api/invoice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: finalItems, type, customerNameAndAddress: customerInfo, customerEmail, customMessage, paymentMethod, isPreview: true })
+      body: JSON.stringify({
+        items: finalItems,
+        type,
+        customerNameAndAddress: customerInfo,
+        customerEmail,
+        customMessage,
+        paymentMethod,
+        depositName: isDepositSet ? (depositName || 'Anzahlung') : undefined,
+        depositAmount: isDepositSet ? depositVal : undefined,
+        isPreview: true
+      })
     });
     if (res.ok) {
       const blob = await res.blob();
@@ -175,6 +207,13 @@ export default function Home() {
     setCustomerEmail(r.customerEmail || '');
     if (r.customMessage !== undefined) setCustomMessage(r.customMessage);
     if (r.paymentMethod) setPaymentMethod(r.paymentMethod);
+    if (r.depositAmount && Math.abs(r.depositAmount) > 0.0001) {
+      setDepositName(r.depositName || 'Anzahlung');
+      setDepositAmount(String(Math.abs(r.depositAmount)));
+    } else {
+      setDepositName('Anzahlung');
+      setDepositAmount('');
+    }
     setType('final');
     setFromProformaId(r.id);
     setStatus(`Loaded Proforma ${r.receiptNumber}. You can now save it as a final invoice.`);
@@ -195,6 +234,13 @@ export default function Home() {
     setCustomerEmail(sourceReceipt.customerEmail || '');
     if (sourceReceipt.customMessage !== undefined) setCustomMessage(sourceReceipt.customMessage);
     if (sourceReceipt.paymentMethod) setPaymentMethod(sourceReceipt.paymentMethod);
+    if (sourceReceipt.depositAmount && Math.abs(sourceReceipt.depositAmount) > 0.0001) {
+      setDepositName(sourceReceipt.depositName || 'Anzahlung');
+      setDepositAmount(String(Math.abs(sourceReceipt.depositAmount)));
+    } else {
+      setDepositName('Anzahlung');
+      setDepositAmount('');
+    }
     setType('final');
     setFromProformaId(undefined);
     setStatus(`Rechnung ${r.receiptNumber} geladen. Sie können diese bearbeiten und neu erstellen.`);
@@ -220,6 +266,8 @@ export default function Home() {
         customerEmail: r.customerEmail,
         customMessage: r.customMessage,
         paymentMethod: r.paymentMethod,
+        depositName: r.depositName,
+        depositAmount: r.depositAmount ? -Math.abs(r.depositAmount) : undefined,
         isStorno: true,
         stornoRef: r.receiptNumber
       })
@@ -298,11 +346,15 @@ export default function Home() {
   };
 
   const subtotalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const depositVal = parseFloat(depositAmount) || 0;
+  const isDepositSet = Math.abs(depositVal) > 0.0001;
+  const remainingBase = isDepositSet ? (subtotalAmount - depositVal) : subtotalAmount;
+
   const selectedMethodForTotal = paymentMethodsData.find(m => m.name === paymentMethod);
-  const currentFeeAmount = (selectedMethodForTotal?.feePercentage && selectedMethodForTotal.feePercentage > 0)
-    ? subtotalAmount * (selectedMethodForTotal.feePercentage / 100)
+  const currentFeeAmount = (selectedMethodForTotal?.feePercentage && selectedMethodForTotal.feePercentage > 0 && remainingBase > 0)
+    ? remainingBase * (selectedMethodForTotal.feePercentage / 100)
     : 0;
-  const totalAmount = subtotalAmount + currentFeeAmount;
+  const totalAmount = remainingBase + currentFeeAmount;
 
   const filteredReceipts = receipts.filter(r => 
       r.receiptNumber.toLowerCase().includes(search.toLowerCase()) || 
@@ -341,6 +393,12 @@ export default function Home() {
               <option value="0%">0%</option>
             </select>
             <button onClick={addCustomItem} style={{ padding: '0.5rem 1rem', cursor: 'pointer', background: '#e0e0e0', border: '1px solid #ccc', borderRadius: '4px' }}>Hinzufügen</button>
+          </div>
+
+          <h3 style={{ marginTop: '2rem', borderBottom: '1px solid #ccc', paddingBottom: '0.5rem' }}>Anzahlung / Kaution</h3>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', marginTop: '1rem' }}>
+            <input placeholder="Bezeichnung (z.B. Anzahlung)" value={depositName} onChange={e => setDepositName(e.target.value)} style={{ flex: 2, padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }} />
+            <input type="number" step="0.01" placeholder="Betrag (z.B. 0.00)" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} style={{ flex: 1, padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }} />
           </div>
 
           <h3 style={{ marginTop: '2rem', borderBottom: '1px solid #ccc', paddingBottom: '0.5rem' }}>Kunde & Einstellungen</h3>
@@ -401,9 +459,34 @@ export default function Home() {
           )}
           
           <div style={{ textAlign: 'right', marginTop: '1rem', borderTop: '2px solid #ccc', paddingTop: '1rem' }}>
-            {currentFeeAmount > 0 && <h4 style={{ margin: '0.2rem 0', color: '#555' }}>Zwischensumme: € {subtotalAmount.toFixed(2)}</h4>}
-            {currentFeeAmount > 0 && <h4 style={{ margin: '0.2rem 0', color: '#555' }}>Gebühr {paymentMethod}: € {currentFeeAmount.toFixed(2)}</h4>}
-            <h2 style={{ margin: '0.5rem 0', fontSize: '1.8rem', color: '#2c3e50' }}>Gesamt: € {totalAmount.toFixed(2)}</h2>
+            {isDepositSet && (
+              <h4 style={{ margin: '0.2rem 0', color: '#555' }}>
+                Gesamtsumme: € {subtotalAmount.toFixed(2)}
+              </h4>
+            )}
+            {isDepositSet && (
+              <h4 style={{ margin: '0.2rem 0', color: '#27ae60' }}>
+                abzgl. {depositName || 'Anzahlung'}: -€ {depositVal.toFixed(2)}
+              </h4>
+            )}
+            {isDepositSet && currentFeeAmount > 0 && (
+              <h4 style={{ margin: '0.2rem 0', color: '#555' }}>
+                Restbetrag (vor Gebühr): € {remainingBase.toFixed(2)}
+              </h4>
+            )}
+            {!isDepositSet && currentFeeAmount > 0 && (
+              <h4 style={{ margin: '0.2rem 0', color: '#555' }}>
+                Zwischensumme: € {subtotalAmount.toFixed(2)}
+              </h4>
+            )}
+            {currentFeeAmount > 0 && (
+              <h4 style={{ margin: '0.2rem 0', color: '#555' }}>
+                Gebühr {paymentMethod}: € {currentFeeAmount.toFixed(2)}
+              </h4>
+            )}
+            <h2 style={{ margin: '0.5rem 0', fontSize: '1.8rem', color: '#2c3e50' }}>
+              {isDepositSet ? `Restbetrag: € ${totalAmount.toFixed(2)}` : `Gesamt: € ${totalAmount.toFixed(2)}`}
+            </h2>
           </div>
 
           <div style={{ marginTop: '2rem' }}>

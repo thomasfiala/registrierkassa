@@ -26,11 +26,22 @@ export async function POST(request: Request) {
     // Check if preview
     if (body.isPreview) {
       const receiptNumber = `PREVIEW-${Date.now()}`;
-      const totalAmount = body.items.reduce((sum: number, item: any) => sum + (item.price * (item.quantity || 1)), 0);
+      const depositVal = (body.depositAmount !== undefined && body.depositAmount !== null && !isNaN(Number(body.depositAmount)))
+        ? Number(body.depositAmount)
+        : 0;
+      const isDepositSet = Math.abs(depositVal) > 0.0001;
+      const depositName = isDepositSet ? (body.depositName || 'Anzahlung') : undefined;
+
+      const itemsTotal = body.items.reduce((sum: number, item: any) => sum + (item.price * (item.quantity || 1)), 0);
+      const totalAmount = isDepositSet ? (itemsTotal - depositVal) : itemsTotal;
+
       const receiptData = {
         receiptNumber,
         date: getCurrentTimezonedDate(),
         items: body.items || [],
+        subtotalAmount: itemsTotal,
+        depositName: isDepositSet ? depositName : undefined,
+        depositAmount: isDepositSet ? depositVal : undefined,
         totalAmount,
         type: body.type || 'final',
         customerNameAndAddress: body.customerNameAndAddress,
@@ -66,7 +77,14 @@ export async function POST(request: Request) {
         ? `PROF-${Date.now()}` 
         : (isStorno ? `STORNO-${Date.now()}` : `INV-${Date.now()}`);
 
-    const totalAmount = body.items.reduce((sum: number, item: any) => sum + (item.price * (item.quantity || 1)), 0);
+    const depositVal = (body.depositAmount !== undefined && body.depositAmount !== null && !isNaN(Number(body.depositAmount)))
+      ? Number(body.depositAmount)
+      : 0;
+    const isDepositSet = Math.abs(depositVal) > 0.0001;
+    const depositName = isDepositSet ? (body.depositName || 'Anzahlung') : undefined;
+
+    const itemsTotal = body.items.reduce((sum: number, item: any) => sum + (item.price * (item.quantity || 1)), 0);
+    const totalAmount = isDepositSet ? (itemsTotal - depositVal) : itemsTotal;
     
     let rksvPayload, jwsString, newHash;
     
@@ -90,6 +108,9 @@ export async function POST(request: Request) {
       receiptNumber,
       date: getCurrentTimezonedDate(),
       items: body.items || [],
+      subtotalAmount: itemsTotal,
+      depositName: isDepositSet ? depositName : undefined,
+      depositAmount: isDepositSet ? depositVal : undefined,
       totalAmount,
       type: body.type || 'final',
       customerNameAndAddress: body.customerNameAndAddress,

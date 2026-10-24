@@ -89,8 +89,25 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
         sepaHeight = 100; // text + image
       }
 
-      doc.fontSize(14).text(`Gesamtbetrag: € ${receiptData.totalAmount.toFixed(2).replace('.', ',')}`, 50, summaryY, { align: 'right', width: contentWidth });
-      let currentRightY = summaryY + 18;
+      const hasDeposit = Boolean(receiptData.depositAmount && Math.abs(receiptData.depositAmount) > 0.0001);
+      const depositName = receiptData.depositName || 'Anzahlung';
+      const subtotalBeforeDeposit = receiptData.subtotalAmount !== undefined 
+        ? receiptData.subtotalAmount 
+        : (receiptData.totalAmount + (receiptData.depositAmount || 0));
+
+      let currentRightY = summaryY;
+
+      if (hasDeposit) {
+        doc.fontSize(10).text(`Gesamtsumme: € ${subtotalBeforeDeposit.toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
+        currentRightY += 15;
+        doc.text(`abzgl. ${depositName}: -€ ${Math.abs(Number(receiptData.depositAmount)).toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
+        currentRightY += 16;
+        doc.fontSize(14).text(`Restbetrag: € ${receiptData.totalAmount.toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
+        currentRightY += 18;
+      } else {
+        doc.fontSize(14).text(`Gesamtbetrag: € ${receiptData.totalAmount.toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
+        currentRightY += 18;
+      }
       
       doc.fontSize(10);
       Object.keys(taxes).forEach(rate => {

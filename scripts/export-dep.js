@@ -74,6 +74,13 @@ try {
         certSerial = config.rksv.certSerial;
       }
     }
+    const dbConfigPath = path.join(DB_DIR, 'config.json');
+    if (fs.existsSync(dbConfigPath)) {
+      const dbConfig = JSON.parse(fs.readFileSync(dbConfigPath, 'utf8'));
+      if (dbConfig.rksv && dbConfig.rksv.certSerial) {
+        certSerial = dbConfig.rksv.certSerial;
+      }
+    }
   } catch (err) {
     // Keep fallback
   }
@@ -96,6 +103,12 @@ try {
   console.log(`[DEP Export] Committing and pushing to git repository...`);
   try {
     execSync('git add dep-export.json', { cwd: DB_DIR, stdio: 'inherit' });
+    if (fs.existsSync(path.join(DB_DIR, 'config.json'))) {
+      try { execSync('git add config.json', { cwd: DB_DIR, stdio: 'inherit' }); } catch (_) {}
+    }
+    if (fs.existsSync(path.join(DB_DIR, 'certificate.cer'))) {
+      try { execSync('git add certificate.cer', { cwd: DB_DIR, stdio: 'inherit' }); } catch (_) {}
+    }
     
     try {
       execSync('git commit -m "chore: automated DEP export backup"', { cwd: DB_DIR, stdio: 'ignore' });

@@ -1,7 +1,19 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import simpleGit from 'simple-git';
 import { getConfig, getConfigPath } from './config';
+
+export type CashEntryType = 'Einzahlung' | 'Auszahlung';
+
+export interface CashEntry {
+  id: string;
+  type: CashEntryType;
+  amount: number;
+  date: string;
+  comment: string;
+  createdAt?: string;
+}
 
 export async function getDbPath() {
   const configPath = getConfigPath();
@@ -30,7 +42,7 @@ export async function initDbRepo() {
       if (fs.existsSync(templatePath)) {
           fs.copyFileSync(templatePath, dbFile);
       } else {
-          fs.writeFileSync(dbFile, JSON.stringify({ receipts: [], currentTurnover: 0, lastReceiptHash: "INITIAL_HASH" }, null, 2));
+          fs.writeFileSync(dbFile, JSON.stringify({ receipts: [], cashEntries: [], currentTurnover: 0, lastReceiptHash: "INITIAL_HASH" }, null, 2));
       }
     }
     await git.add('.');
@@ -152,4 +164,73 @@ export async function deleteProforma(id: string) {
   await git.commit(`Deleted Proforma ${receipt.receiptNumber}`);
   await pushIfEnabled(git);
 }
+
+export async function readCashEntries(): Promise<CashEntry[]> {
+  const db = await readDb();
+  return db.cashEntries || [];
+}
+
+export async function addCashEntry(entry: { type: CashEntryType; amount: number; date: string; comment: string }): Promise<CashEntry> {
+  const dbRepo = await getDbPath();
+  const db = await readDb();
+  if (!db.cashEntries) db.cashEntries = [];
+  const newEntry: CashEntry = {
+    id: crypto.randomUUID(),
+    type: entry.type,
+    amount: Math.abs(Number(entry.amount)),
+    date: entry.date,
+    comment: entry.comment || '',
+    createdAt: new Date().toISOString()
+  };
+  db.cashEntries.push(newEntry);
+  await writeDb(db);
+
+  const git = simpleGit(dbRepo);
+  await git.add('db.json');
+  await git.commit(`Kassabuch: ${newEntry.type} €${newEntry.amount.toFixed(2)}${newEntry.comment ? ` - ${newEntry.comment}` : ''}`);
+  await pushIfEnabled(git);
+  return newEntry;
+}
+
+export async function updateCashEntry(id: string, updates: { type?: CashEntryType; amount?: number; date?: string; comment?: string }): Promise<CashEntry | null> {
+  const dbRepo = await getDbPath();
+  const db = await readDb();
+  if (!db.cashEntries) return null;
+  const index = db.cashEntries.findIndex((e: any) => e.id === id);
+  if (index === -1) return null;
+
+  const current = db.cashEntries[index];
+  const updated: CashEntry = {
+    ...current,
+    type: updates.type ?? current.type,
+    amount: updates.amount !== undefined ? Math.abs(Number(updates.amount)) : current.amount,
+    date: updates.date ?? current.date,
+    comment: updates.comment !== undefined ? updates.comment : current.comment
+  };
+  db.cashEntries[index] = updated;
+  await writeDb(db);
+
+  const git = simpleGit(dbRepo);
+  await git.add('db.json');
+  await git.commit(`Kassabuch: Aktualisiert ${updated.type} €${updated.amount.toFixed(2)}`);
+  await pushIfEnabled(git);
+  return updated;
+}
+
+export async function deleteCashEntry(id: string): Promise<boolean> {
+  const dbRepo = await getDbPath();
+  const db = await readDb();
+  if (!db.cashEntries) return false;
+  const initialLen = db.cashEntries.length;
+  db.cashEntries = db.cashEntries.filter((e: any) => e.id !== id);
+  if (db.cashEntries.length === initialLen) return false;
+  await writeDb(db);
+
+  const git = simpleGit(dbRepo);
+  await git.add('db.json');
+  await git.commit(`Kassabuch: Gelöscht ${id}`);
+  await pushIfEnabled(git);
+  return true;
+}
+
 export async function wipeDbHistory() { console.log('Wiping DB history... (Mocked for now)'); }

@@ -1,11 +1,34 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 type Item = { name: string; price: number; taxRate: string; id: number; quantity: number };
 type Template = { name: string; price: number; taxRate: string };
 type Receipt = { id: string; receiptNumber: string; date: string; type: string; totalAmount: number; customerNameAndAddress?: string; customerEmail?: string; isStorno?: boolean; stornoed?: boolean; stornoRef?: string; convertedToFinal?: boolean; items: any[]; paymentMethod?: string; customMessage?: string; depositName?: string; depositAmount?: number; subtotalAmount?: number };
 
+type CashEntry = {
+  id: string;
+  type: 'Einzahlung' | 'Auszahlung';
+  amount: number;
+  date: string;
+  comment: string;
+  createdAt?: string;
+};
+
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<'pos' | 'kassabuch'>('pos');
+
+  // Kassabuch State
+  const [cashEntries, setCashEntries] = useState<CashEntry[]>([]);
+  const [entryType, setEntryType] = useState<'Einzahlung' | 'Auszahlung'>('Einzahlung');
+  const [entryAmount, setEntryAmount] = useState('');
+  const [entryDate, setEntryDate] = useState(() => new Date().toISOString().substring(0, 10));
+  const [entryComment, setEntryComment] = useState('');
+  const [cashStatus, setCashStatus] = useState('');
+  const [cashFilter, setCashFilter] = useState<'all' | 'manual' | 'receipts'>('all');
+  const [cashSearch, setCashSearch] = useState('');
+  const [hoveredMonthIndex, setHoveredMonthIndex] = useState<number | null>(null);
+  const [editingEntry, setEditingEntry] = useState<CashEntry | null>(null);
+
   const [items, setItems] = useState<Item[]>([]);
   const [type, setType] = useState('final');
   const [status, setStatus] = useState('');
@@ -48,6 +71,7 @@ export default function Home() {
       }
     });
     loadReceipts();
+    loadCashEntries();
   }, []);
 
   const loadReceipts = async () => {
@@ -55,6 +79,18 @@ export default function Home() {
     const data = await res.json();
     if (data.success) {
       setReceipts(data.receipts);
+    }
+  };
+
+  const loadCashEntries = async () => {
+    try {
+      const res = await fetch('/api/cashbook');
+      const data = await res.json();
+      if (data.success) {
+        setCashEntries(data.entries || []);
+      }
+    } catch (e) {
+      console.error('Failed to load cashbook entries', e);
     }
   };
 
@@ -143,6 +179,7 @@ export default function Home() {
       setDepositAmount('');
       setFromProformaId(undefined);
       loadReceipts();
+      loadCashEntries();
     } else {
       setStatus(`Error: ${data.error}`);
     }
@@ -275,6 +312,7 @@ export default function Home() {
     if (res.ok) {
       setStatus(`Storno created.`);
       loadReceipts();
+      loadCashEntries();
     } else {
       setStatus('Storno failed.');
     }
@@ -367,11 +405,377 @@ export default function Home() {
       return 0;
   });
 
+  // --- Kassabuch Functions ---
+  const handleCreateCashEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseFloat(entryAmount);
+    if (isNaN(parsed) || parsed <= 0) {
+      setCashStatus('Fehler: Bitte einen Betrag größer als 0 eingeben.');
+      return;
+    }
+
+    setCashStatus('Speichere Buchung...');
+    try {
+      const res = await fetch('/api/cashbook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: entryType,
+          amount: parsed,
+          date: entryDate || new Date().toISOString().substring(0, 10),
+          comment: entryComment
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCashStatus(`Erfolgreich gebucht: ${entryType} € ${parsed.toFixed(2)}`);
+        setEntryAmount('');
+        setEntryComment('');
+        loadCashEntries();
+      } else {
+        setCashStatus(`Fehler: ${data.error}`);
+      }
+    } catch (err: any) {
+      setCashStatus(`Fehler: ${err.message}`);
+    }
+  };
+
+  const handleUpdateCashEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry) return;
+
+    const parsed = typeof editingEntry.amount === 'number' ? editingEntry.amount : parseFloat(String(editingEntry.amount));
+    if (isNaN(parsed) || parsed <= 0) {
+      alert('Bitte einen Betrag größer als 0 eingeben.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/cashbook', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingEntry.id,
+          type: editingEntry.type,
+          amount: parsed,
+          date: editingEntry.date,
+          comment: editingEntry.comment
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingEntry(null);
+        loadCashEntries();
+        setCashStatus('Eintrag aktualisiert.');
+      } else {
+        alert(`Fehler: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(`Fehler: ${err.message}`);
+    }
+  };
+
+  const handleDeleteCashEntry = async (id: string) => {
+    if (!confirm('Diesen Kassabucheintrag wirklich löschen?')) return;
+    try {
+      const res = await fetch(`/api/cashbook?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        loadCashEntries();
+        setCashStatus('Eintrag gelöscht.');
+      } else {
+        alert(`Fehler: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(`Fehler: ${err.message}`);
+    }
+  };
+
+  // --- Calculations for Cash Balance and Dynamic Diagram ---
+  const cashCalculations = useMemo(() => {
+    // 1. All final invoices paid in cash ('bar')
+    const barReceipts = receipts.filter(r => r.type === 'final' && r.paymentMethod?.toLowerCase() === 'bar');
+    const totalCashFromReceipts = barReceipts.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
+
+    // 2. Sum of manual deposits and withdrawals
+    const totalEinzahlungen = cashEntries
+      .filter(e => e.type === 'Einzahlung')
+      .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    const totalAuszahlungen = cashEntries
+      .filter(e => e.type === 'Auszahlung')
+      .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    // 3. Current cash present in register
+    const currentCashBalance = totalCashFromReceipts + totalEinzahlungen - totalAuszahlungen;
+
+    // 4. Generate 12 months data
+    const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+    const fullMonthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+
+    const months12: { key: string; label: string; fullLabel: string; year: number; month: number }[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(curYear, curMonth - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+      const label = `${monthNames[m]} '${String(y).slice(-2)}`;
+      const fullLabel = `${fullMonthNames[m]} ${y}`;
+      months12.push({ key, label, fullLabel, year: y, month: m });
+    }
+
+    const firstMonthKey = months12[0].key;
+
+    // Combined movements list
+    type MovementItem = {
+      id: string;
+      date: string;
+      monthKey: string;
+      type: 'Einzahlung' | 'Auszahlung' | 'Bar-Beleg';
+      amount: number;
+      comment: string;
+      source: 'receipt' | 'manual';
+      receiptNumber?: string;
+      rawEntry?: CashEntry;
+    };
+
+    const allMovements: MovementItem[] = [
+      ...barReceipts.map(r => {
+        const dStr = (r.date || '').substring(0, 10);
+        const mKey = dStr.substring(0, 7);
+        const amt = r.totalAmount || 0;
+        const isStorno = r.isStorno || amt < 0;
+        const desc = `${isStorno ? 'Storno-Beleg' : 'Rechnung'} ${r.receiptNumber}${r.customerNameAndAddress ? ' (' + r.customerNameAndAddress.split('\n')[0] + ')' : ''}`;
+        return {
+          id: `rec-${r.id || r.receiptNumber}`,
+          date: dStr,
+          monthKey: mKey,
+          type: 'Bar-Beleg' as const,
+          amount: amt,
+          comment: desc,
+          source: 'receipt' as const,
+          receiptNumber: r.receiptNumber
+        };
+      }),
+      ...cashEntries.map(e => {
+        const dStr = (e.date || '').substring(0, 10);
+        const mKey = dStr.substring(0, 7);
+        const amt = e.type === 'Einzahlung' ? e.amount : -e.amount;
+        return {
+          id: `man-${e.id}`,
+          date: dStr,
+          monthKey: mKey,
+          type: e.type,
+          amount: amt,
+          comment: e.comment || (e.type === 'Einzahlung' ? 'Bareinzahlung' : 'Barauszahlung'),
+          source: 'manual' as const,
+          rawEntry: e
+        };
+      })
+    ].sort((a, b) => a.date.localeCompare(b.date));
+
+    // Calculate prior balance before the 12 month window
+    const priorBalance = allMovements
+      .filter(m => m.monthKey < firstMonthKey)
+      .reduce((sum, m) => sum + m.amount, 0);
+
+    let rollingBalance = priorBalance;
+    const monthlyStats = months12.map(m => {
+      const monthItems = allMovements.filter(item => item.monthKey === m.key);
+      const inflow = monthItems.filter(item => item.amount > 0).reduce((sum, item) => sum + item.amount, 0);
+      const outflow = monthItems.filter(item => item.amount < 0).reduce((sum, item) => sum + Math.abs(item.amount), 0);
+      const net = inflow - outflow;
+      rollingBalance += net;
+
+      return {
+        ...m,
+        inflow,
+        outflow,
+        net,
+        balance: rollingBalance,
+        count: monthItems.length
+      };
+    });
+
+    // Compute running balance for all movements (for journal view)
+    let journalRunning = 0;
+    const journalEntries = allMovements.map(m => {
+      journalRunning += m.amount;
+      return {
+        ...m,
+        balanceAfter: journalRunning
+      };
+    }).reverse(); // newest first
+
+    return {
+      barReceiptsCount: barReceipts.length,
+      totalCashFromReceipts,
+      totalEinzahlungen,
+      totalAuszahlungen,
+      currentCashBalance,
+      monthlyStats,
+      journalEntries
+    };
+  }, [receipts, cashEntries]);
+
+  // Diagram coordinates and scaling
+  const chartConfig = useMemo(() => {
+    const stats = cashCalculations.monthlyStats;
+    if (stats.length === 0) return null;
+
+    const balances = stats.map(s => s.balance);
+    const flows = stats.flatMap(s => [s.inflow, s.outflow]);
+    
+    let minVal = Math.min(0, ...balances);
+    let maxVal = Math.max(100, ...balances, ...flows);
+    
+    // Add 15% top padding to chart for aesthetic headroom
+    const range = maxVal - minVal || 100;
+    maxVal = maxVal + range * 0.15;
+    if (minVal < 0) minVal = minVal - range * 0.05;
+
+    const svgWidth = 840;
+    const svgHeight = 280;
+    const padLeft = 70;
+    const padRight = 30;
+    const padTop = 30;
+    const padBottom = 45;
+
+    const plotWidth = svgWidth - padLeft - padRight;
+    const plotHeight = svgHeight - padTop - padBottom;
+
+    const getX = (index: number) => padLeft + (index / (stats.length - 1)) * plotWidth;
+    const getY = (val: number) => padTop + plotHeight - ((val - minVal) / (maxVal - minVal)) * plotHeight;
+    const zeroY = getY(0);
+
+    const points = stats.map((s, i) => ({
+      x: getX(i),
+      y: getY(s.balance),
+      barX: getX(i) - 14,
+      inflowY: getY(s.inflow),
+      inflowHeight: zeroY - getY(s.inflow),
+      outflowY: zeroY,
+      outflowHeight: getY(-s.outflow) - zeroY,
+      stat: s
+    }));
+
+    // Generate SVG path for line
+    const linePath = points.reduce((acc, pt, idx) => {
+      return idx === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
+    }, '');
+
+    // Generate area path under the line down to bottom
+    const areaPath = points.length > 0 
+      ? `${linePath} L ${points[points.length - 1].x} ${padTop + plotHeight} L ${points[0].x} ${padTop + plotHeight} Z`
+      : '';
+
+    // 4 Y-axis ticks
+    const yTicks = [0, 0.33, 0.66, 1].map(fraction => {
+      const val = minVal + fraction * (maxVal - minVal);
+      return {
+        val,
+        y: getY(val)
+      };
+    });
+
+    return {
+      svgWidth,
+      svgHeight,
+      padLeft,
+      padTop,
+      plotWidth,
+      plotHeight,
+      zeroY,
+      points,
+      linePath,
+      areaPath,
+      yTicks,
+      minVal,
+      maxVal
+    };
+  }, [cashCalculations.monthlyStats]);
+
+  const filteredJournalEntries = cashCalculations.journalEntries.filter(entry => {
+    if (cashFilter === 'manual' && entry.source !== 'manual') return false;
+    if (cashFilter === 'receipts' && entry.source !== 'receipt') return false;
+    if (cashSearch) {
+      const q = cashSearch.toLowerCase();
+      const matchComment = entry.comment.toLowerCase().includes(q);
+      const matchType = entry.type.toLowerCase().includes(q);
+      const matchRef = entry.receiptNumber?.toLowerCase().includes(q) || false;
+      return matchComment || matchType || matchRef;
+    }
+    return true;
+  });
+
+  const activeStat = hoveredMonthIndex !== null 
+    ? cashCalculations.monthlyStats[hoveredMonthIndex] 
+    : cashCalculations.monthlyStats[cashCalculations.monthlyStats.length - 1];
+
   return (
     <main style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto', color: '#333' }}>
-      <h1 style={{ fontSize: '2.5rem', marginBottom: '1.5rem', fontWeight: 600, borderBottom: '2px solid #eaeaea', paddingBottom: '0.5rem' }}>{appHeader}</h1>
-      
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginTop: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eaeaea', paddingBottom: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h1 style={{ fontSize: '2.4rem', margin: 0, fontWeight: 700, color: '#1a202c' }}>{appHeader}</h1>
+        
+        {/* Navigation Tabs */}
+        <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.3rem', borderRadius: '10px', gap: '0.3rem' }}>
+          <button
+            onClick={() => setActiveTab('pos')}
+            style={{
+              padding: '0.6rem 1.4rem',
+              fontSize: '1rem',
+              fontWeight: 600,
+              background: activeTab === 'pos' ? '#ffffff' : 'transparent',
+              color: activeTab === 'pos' ? '#0070f3' : '#64748b',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              boxShadow: activeTab === 'pos' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Registrierkassa POS
+          </button>
+          <button
+            onClick={() => setActiveTab('kassabuch')}
+            style={{
+              padding: '0.6rem 1.4rem',
+              fontSize: '1rem',
+              fontWeight: 600,
+              background: activeTab === 'kassabuch' ? '#ffffff' : 'transparent',
+              color: activeTab === 'kassabuch' ? '#0070f3' : '#64748b',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              boxShadow: activeTab === 'kassabuch' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Kassabuch
+            <span style={{
+              fontSize: '0.85rem',
+              padding: '0.15rem 0.6rem',
+              borderRadius: '20px',
+              background: cashCalculations.currentCashBalance >= 0 ? '#dcfce7' : '#fee2e2',
+              color: cashCalculations.currentCashBalance >= 0 ? '#166534' : '#991b1b',
+              fontWeight: 700
+            }}>
+              € {cashCalculations.currentCashBalance.toFixed(2)}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'pos' && (
+        <div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginTop: '1rem' }}>
         <div style={{ flex: '1 1 350px' }}>
           <h3 style={{ borderBottom: '1px solid #ccc', paddingBottom: '0.5rem' }}>Vorlagen</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
@@ -588,6 +992,639 @@ export default function Home() {
           </tbody>
         </table>
       </div>
+    </div>
+  )}
+
+  {/* --- TAB 2: KASSABUCH --- */}
+  {activeTab === 'kassabuch' && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      
+      {/* Top Overview Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+          <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Aktueller Kassenstand (Bar)</span>
+          <div style={{ fontSize: '2.2rem', fontWeight: 700, marginTop: '0.4rem', color: cashCalculations.currentCashBalance >= 0 ? '#16a34a' : '#dc2626' }}>
+            € {cashCalculations.currentCashBalance.toFixed(2)}
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.3rem' }}>
+            Vorhandener Bargeldbestand
+          </div>
+        </div>
+
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+          <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bar-Umsatz (Belege)</span>
+          <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '0.4rem', color: '#0284c7' }}>
+            € {cashCalculations.totalCashFromReceipts.toFixed(2)}
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.3rem' }}>
+            Aus {cashCalculations.barReceiptsCount} Bar-Belegen
+          </div>
+        </div>
+
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+          <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Summe Einzahlungen</span>
+          <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '0.4rem', color: '#16a34a' }}>
+            +€ {cashCalculations.totalEinzahlungen.toFixed(2)}
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.3rem' }}>
+            Manuelle Bareinlagen
+          </div>
+        </div>
+
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+          <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Summe Auszahlungen</span>
+          <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '0.4rem', color: '#ea580c' }}>
+            -€ {cashCalculations.totalAuszahlungen.toFixed(2)}
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.3rem' }}>
+            Manuelle Barausgaben
+          </div>
+        </div>
+      </div>
+
+      {/* Dynamic 12-Month Diagram */}
+      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>
+              Kassenstand-Entwicklung (Letzte 12 Monate)
+            </h3>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>
+              Verlauf des Bargeldbestands und monatliche Bar-Flüsse
+            </p>
+          </div>
+
+          {activeStat && (
+            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.5rem 1rem', display: 'flex', gap: '1.5rem', fontSize: '0.875rem' }}>
+              <div>
+                <span style={{ color: '#64748b' }}>Monat: </span>
+                <strong style={{ color: '#0f172a' }}>{activeStat.fullLabel}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Kassenstand: </span>
+                <strong style={{ color: activeStat.balance >= 0 ? '#16a34a' : '#dc2626' }}>€ {activeStat.balance.toFixed(2)}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Zufluss: </span>
+                <strong style={{ color: '#16a34a' }}>+€ {activeStat.inflow.toFixed(2)}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Abfluss: </span>
+                <strong style={{ color: '#ea580c' }}>-€ {activeStat.outflow.toFixed(2)}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Saldo: </span>
+                <strong style={{ color: activeStat.net >= 0 ? '#16a34a' : '#dc2626' }}>€ {activeStat.net.toFixed(2)}</strong>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {chartConfig && (
+          <div style={{ width: '100%', overflowX: 'auto' }}>
+            <svg
+              viewBox={`0 0 ${chartConfig.svgWidth} ${chartConfig.svgHeight}`}
+              style={{ width: '100%', minWidth: '700px', height: 'auto', display: 'block' }}
+            >
+              <defs>
+                <linearGradient id="cashGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0070f3" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="#0070f3" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
+              {/* Horizontal Gridlines & Y Labels */}
+              {chartConfig.yTicks.map((tick, i) => (
+                <g key={i}>
+                  <line
+                    x1={chartConfig.padLeft}
+                    y1={tick.y}
+                    x2={chartConfig.svgWidth - 30}
+                    y2={tick.y}
+                    stroke="#e2e8f0"
+                    strokeDasharray="4 4"
+                  />
+                  <text
+                    x={chartConfig.padLeft - 10}
+                    y={tick.y + 4}
+                    textAnchor="end"
+                    fontSize="11"
+                    fill="#94a3b8"
+                    fontFamily="sans-serif"
+                  >
+                    € {Math.round(tick.val)}
+                  </text>
+                </g>
+              ))}
+
+              {/* Zero Line if visible */}
+              {chartConfig.zeroY >= chartConfig.padTop && chartConfig.zeroY <= chartConfig.padTop + chartConfig.plotHeight && (
+                <line
+                  x1={chartConfig.padLeft}
+                  y1={chartConfig.zeroY}
+                  x2={chartConfig.svgWidth - 30}
+                  y2={chartConfig.zeroY}
+                  stroke="#94a3b8"
+                  strokeWidth="1.5"
+                />
+              )}
+
+              {/* Area fill under the line */}
+              {chartConfig.areaPath && (
+                <path d={chartConfig.areaPath} fill="url(#cashGradient)" />
+              )}
+
+              {/* Balance Line */}
+              {chartConfig.linePath && (
+                <path
+                  d={chartConfig.linePath}
+                  fill="none"
+                  stroke="#0070f3"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+
+              {/* Interactive columns & points */}
+              {chartConfig.points.map((pt, i) => {
+                const isHovered = hoveredMonthIndex === i;
+                return (
+                  <g
+                    key={i}
+                    onMouseEnter={() => setHoveredMonthIndex(i)}
+                    onMouseLeave={() => setHoveredMonthIndex(null)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* Hover vertical bar */}
+                    {isHovered && (
+                      <line
+                        x1={pt.x}
+                        y1={chartConfig.padTop}
+                        x2={pt.x}
+                        y2={chartConfig.padTop + chartConfig.plotHeight}
+                        stroke="#0070f3"
+                        strokeWidth="1"
+                        strokeDasharray="2 2"
+                      />
+                    )}
+
+                    {/* Interactive invisible hit box for hovering */}
+                    <rect
+                      x={pt.x - 25}
+                      y={chartConfig.padTop}
+                      width={50}
+                      height={chartConfig.plotHeight + 35}
+                      fill="transparent"
+                    />
+
+                    {/* Point on the line */}
+                    <circle
+                      cx={pt.x}
+                      cy={pt.y}
+                      r={isHovered ? 6 : 4}
+                      fill={isHovered ? '#0070f3' : '#ffffff'}
+                      stroke="#0070f3"
+                      strokeWidth={isHovered ? 3 : 2}
+                      style={{ transition: 'all 0.15s ease' }}
+                    />
+
+                    {/* Month X label */}
+                    <text
+                      x={pt.x}
+                      y={chartConfig.svgHeight - 15}
+                      textAnchor="middle"
+                      fontSize="11"
+                      fontWeight={isHovered ? 'bold' : 'normal'}
+                      fill={isHovered ? '#0070f3' : '#64748b'}
+                      fontFamily="sans-serif"
+                    >
+                      {pt.stat.label}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        )}
+      </div>
+
+      {/* Form: Einzahlung & Auszahlung erfassen */}
+      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+          Neue Kassenbewegung erfassen
+        </h3>
+
+        <form onSubmit={handleCreateCashEntry} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            
+            {/* Type Selection */}
+            <div style={{ flex: '1 1 200px' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>
+                Buchungstyp
+              </label>
+              <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setEntryType('Einzahlung')}
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    background: entryType === 'Einzahlung' ? '#16a34a' : 'transparent',
+                    color: entryType === 'Einzahlung' ? '#ffffff' : '#475569',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  + Einzahlung
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEntryType('Auszahlung')}
+                  style={{
+                    flex: 1,
+                    padding: '0.5rem',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    background: entryType === 'Auszahlung' ? '#ea580c' : 'transparent',
+                    color: entryType === 'Auszahlung' ? '#ffffff' : '#475569',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  - Auszahlung
+                </button>
+              </div>
+            </div>
+
+            {/* Amount */}
+            <div style={{ flex: '1 1 150px' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>
+                Betrag (€)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="0.00"
+                value={entryAmount}
+                onChange={e => setEntryAmount(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Date */}
+            <div style={{ flex: '1 1 180px' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>
+                Datum
+              </label>
+              <input
+                type="date"
+                value={entryDate}
+                onChange={e => setEntryDate(e.target.value)}
+                required
+                style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Comment */}
+            <div style={{ flex: '2 1 280px' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>
+                Bemerkung / Verwendungszweck
+              </label>
+              <input
+                type="text"
+                placeholder="z.B. Wechselgeld-Einlage, Büromaterial, Bankeinzahlung..."
+                value={entryComment}
+                onChange={e => setEntryComment(e.target.value)}
+                style={{ width: '100%', padding: '0.55rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+            {cashStatus && (
+              <span style={{ fontSize: '0.9rem', color: cashStatus.startsWith('Fehler') ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
+                {cashStatus}
+              </span>
+            )}
+            <button
+              type="submit"
+              style={{
+                padding: '0.65rem 1.75rem',
+                background: entryType === 'Einzahlung' ? '#16a34a' : '#ea580c',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 700,
+                fontSize: '1rem',
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              }}
+            >
+              Buchung speichern
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Kassabuch Journal Table */}
+      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>
+              Kassenjournal (Alle Bewegungen)
+            </h3>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+              Chronologische Übersicht aller Bar-Belege, Einzahlungen und Auszahlungen
+            </span>
+          </div>
+
+          {/* Filters */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Suchen..."
+              value={cashSearch}
+              onChange={e => setCashSearch(e.target.value)}
+              style={{ padding: '0.4rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.9rem' }}
+            />
+            <button
+              onClick={() => setCashFilter('all')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: cashFilter === 'all' ? '#0070f3' : '#fff',
+                color: cashFilter === 'all' ? '#fff' : '#475569',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Alle ({cashCalculations.journalEntries.length})
+            </button>
+            <button
+              onClick={() => setCashFilter('manual')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: cashFilter === 'manual' ? '#0070f3' : '#fff',
+                color: cashFilter === 'manual' ? '#fff' : '#475569',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Nur Ein-/Auszahlungen ({cashEntries.length})
+            </button>
+            <button
+              onClick={() => setCashFilter('receipts')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: cashFilter === 'receipts' ? '#0070f3' : '#fff',
+                color: cashFilter === 'receipts' ? '#fff' : '#475569',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Nur Bar-Belege ({cashCalculations.barReceiptsCount})
+            </button>
+          </div>
+        </div>
+
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', borderRadius: '8px', overflow: 'hidden' }}>
+          <thead>
+            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontSize: '0.875rem' }}>
+              <th style={{ padding: '0.75rem 1rem' }}>Datum</th>
+              <th style={{ padding: '0.75rem 1rem' }}>Typ</th>
+              <th style={{ padding: '0.75rem 1rem' }}>Bemerkung / Beleg</th>
+              <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Betrag</th>
+              <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Kassenstand</th>
+              <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredJournalEntries.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+                  Keine Einträge gefunden.
+                </td>
+              </tr>
+            ) : (
+              filteredJournalEntries.map(entry => (
+                <tr
+                  key={entry.id}
+                  style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}
+                  onMouseOver={e => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <td style={{ padding: '0.75rem 1rem', fontSize: '0.9rem', color: '#334155' }}>
+                    {entry.date}
+                  </td>
+                  <td style={{ padding: '0.75rem 1rem' }}>
+                    <span style={{
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '12px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      background: entry.type === 'Einzahlung' ? '#dcfce7' : (entry.type === 'Auszahlung' ? '#ffedd5' : '#e0f2fe'),
+                      color: entry.type === 'Einzahlung' ? '#166534' : (entry.type === 'Auszahlung' ? '#9a3412' : '#0369a1')
+                    }}>
+                      {entry.type}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.75rem 1rem', fontSize: '0.9rem', color: '#1e293b' }}>
+                    {entry.comment}
+                  </td>
+                  <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem', color: entry.amount >= 0 ? '#16a34a' : '#ea580c' }}>
+                    {entry.amount >= 0 ? '+' : ''}€ {entry.amount.toFixed(2)}
+                  </td>
+                  <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 600, fontSize: '0.95rem', color: entry.balanceAfter >= 0 ? '#0f172a' : '#dc2626' }}>
+                    € {entry.balanceAfter.toFixed(2)}
+                  </td>
+                  <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                    {entry.source === 'manual' && entry.rawEntry && (
+                      <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                        <button
+                          onClick={() => setEditingEntry(entry.rawEntry!)}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.8rem',
+                            background: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            color: '#334155'
+                          }}
+                        >
+                          Bearbeiten
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCashEntry(entry.rawEntry!.id)}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.8rem',
+                            background: '#fee2e2',
+                            border: '1px solid #fca5a5',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            color: '#b91c1c'
+                          }}
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                    )}
+                    {entry.source === 'receipt' && entry.receiptNumber && (
+                      <a
+                        href={`/api/pdf?file=${entry.receiptNumber}.pdf`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          color: '#0070f3',
+                          textDecoration: 'none',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          padding: '0.25rem 0.5rem',
+                          border: '1px solid #0070f3',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        PDF
+                      </a>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )}
+
+  {/* --- MODAL: EDIT CASH ENTRY --- */}
+  {editingEntry && (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: '#ffffff', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '480px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+        <h3 style={{ marginTop: 0, borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', color: '#1e293b' }}>
+          Kassenbewegung bearbeiten
+        </h3>
+
+        <form onSubmit={handleUpdateCashEntry} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.3rem' }}>
+              Buchungstyp
+            </label>
+            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '0.25rem' }}>
+              <button
+                type="button"
+                onClick={() => setEditingEntry({ ...editingEntry, type: 'Einzahlung' })}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  background: editingEntry.type === 'Einzahlung' ? '#16a34a' : 'transparent',
+                  color: editingEntry.type === 'Einzahlung' ? '#ffffff' : '#475569'
+                }}
+              >
+                + Einzahlung
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingEntry({ ...editingEntry, type: 'Auszahlung' })}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  background: editingEntry.type === 'Auszahlung' ? '#ea580c' : 'transparent',
+                  color: editingEntry.type === 'Auszahlung' ? '#ffffff' : '#475569'
+                }}
+              >
+                - Auszahlung
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.3rem' }}>
+              Betrag (€)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={editingEntry.amount}
+              onChange={e => setEditingEntry({ ...editingEntry, amount: parseFloat(e.target.value) || 0 })}
+              required
+              style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.3rem' }}>
+              Datum
+            </label>
+            <input
+              type="date"
+              value={editingEntry.date}
+              onChange={e => setEditingEntry({ ...editingEntry, date: e.target.value })}
+              required
+              style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#475569', marginBottom: '0.3rem' }}>
+              Bemerkung / Kommentar
+            </label>
+            <input
+              type="text"
+              value={editingEntry.comment}
+              onChange={e => setEditingEntry({ ...editingEntry, comment: e.target.value })}
+              style={{ width: '100%', padding: '0.55rem', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+            <button
+              type="button"
+              onClick={() => setEditingEntry(null)}
+              style={{ padding: '0.55rem 1.25rem', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', color: '#475569' }}
+            >
+              Abbrechen
+            </button>
+            <button
+              type="submit"
+              style={{ padding: '0.55rem 1.25rem', background: '#0070f3', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Speichern
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )}
 
       {emailModal.open && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>

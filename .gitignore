@@ -32,3 +32,10 @@ registrierkassa.service
 # config/db
 config.json
 db.json
+
+# openclaw workspace files
+AGENTS.md
+IDENTITY.md
+SOUL.md
+USER.md
+memory/

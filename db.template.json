@@ -1,5 +1,6 @@
 {
   "receipts": [],
+  "cashEntries": [],
   "currentTurnover": 0,
   "lastReceiptHash": "INITIAL_HASH"
 }

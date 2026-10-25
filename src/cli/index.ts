@@ -6,7 +6,7 @@ import os from 'os';
 // @ts-ignore
 import { prompt } from 'enquirer';
 import { getConfig, getConfigPath, saveConfig } from '../lib/config';
-import { getDbPath, readDb, commitReceipt, initDbRepo, wipeDbHistory, writeDb } from '../lib/db';
+import { getDbPath, readDb, commitReceipt, initDbRepo, wipeDbHistory, writeDb, readCashEntries, addCashEntry } from '../lib/db';
 import { generateInvoicePdf } from '../lib/pdf';
 import { encryptTurnover, buildRksvPayload, signPayloadJWS, hashJws } from '../lib/rksv';
 import { sendEmail } from '../lib/email';
@@ -226,6 +226,44 @@ async function sendEmailCommand(receiptNumber: string, emailTo: string) {
     console.error('Email failed:', err);
   }
 }
+
+const cashbookCmd = program.command('cashbook').description('Manage Kassabuch entries');
+
+cashbookCmd.command('list')
+  .description('List recent cashbook entries')
+  .action(async () => {
+    try {
+      const entries = await readCashEntries();
+      console.log('--- Kassabuch Entries ---');
+      entries.slice(0, 20).forEach((e: any) => {
+        console.log(`${e.date} | ${e.type} | ${e.amount.toFixed(2)} EUR | ${e.comment}`);
+      });
+    } catch (err) {
+      console.error('Failed to list cashbook entries:', err);
+    }
+  });
+
+cashbookCmd.command('add')
+  .description('Add a cashbook entry')
+  .argument('<type>', 'Einzahlung or Auszahlung')
+  .argument('<amount>', 'Amount in EUR (e.g. 100 or 50.50)')
+  .argument('[comment]', 'Optional comment')
+  .action(async (type, amount, comment) => {
+    try {
+      if (type !== 'Einzahlung' && type !== 'Auszahlung') {
+        throw new Error('Type must be Einzahlung or Auszahlung');
+      }
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        throw new Error('Invalid amount');
+      }
+      const date = getCurrentTimezonedDate().substring(0, 10);
+      const entry = await addCashEntry({ type, amount: parsedAmount, date, comment: comment || '' });
+      console.log(`✅ Added ${type}: ${parsedAmount.toFixed(2)} EUR (${date})`);
+    } catch (err: any) {
+      console.error('Failed to add cashbook entry:', err.message);
+    }
+  });
 
 
 program.command('setup')

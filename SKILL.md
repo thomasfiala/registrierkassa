@@ -11,6 +11,8 @@ The CLI is available globally via the `kassa` command (wrapper located at `~/Scr
 - `kassa list` - List receipts.
 - `kassa storno <id>` - Storno receipt.
 - `kassa email <id> <address>` - Send email.
+- `kassa cashbook list` - List recent cashbook entries (Kassabuch).
+- `kassa cashbook add <type> <amount> [comment]` - Add a cashbook entry (Einzahlung / Auszahlung).
 
 Runs as a systemd service on port 1235.
 
@@ -19,6 +21,7 @@ Runs as a systemd service on port 1235.
 - **Interactive Setup:** `kassa setup` handles generating the initial configuration.
 - **SEPA QR Codes:** If the user configures their IBAN/BIC, the system automatically prints an EPC SEPA QR code on PDFs for "Überweisung" (bank transfer) payments.
 - **Payment Method Fees:** Allows configuring percentage-based fees (with associated tax rates) for specific payment methods (e.g., credit cards). These are automatically added to the invoice total.
+- **Kassabuch (Cashbook):** Allows tracking physical cash via the UI and CLI without impacting RKSV turnover. Can list and add Einzahlungen/Auszahlungen.
 
 ## Recurring Tasks & Reminders
 

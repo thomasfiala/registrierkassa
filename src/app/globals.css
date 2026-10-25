@@ -1,0 +1,239 @@
+/* Base & Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Touch and mobile form scaling */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Main Container */
+.app-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: #333;
+  font-family: sans-serif;
+  width: 100%;
+}
+
+@media screen and (max-width: 768px) {
+  .app-container {
+    padding: 0.85rem 0.65rem;
+  }
+}
+
+/* Header & Tabs */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #eaeaea;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+@media screen and (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.app-title {
+  font-size: 2.2rem;
+  margin: 0;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+@media screen and (max-width: 768px) {
+  .app-title {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+}
+
+.nav-tabs-wrapper {
+  display: flex;
+  background: #f1f5f9;
+  padding: 0.3rem;
+  border-radius: 10px;
+  gap: 0.3rem;
+}
+
+@media screen and (max-width: 768px) {
+  .nav-tabs-wrapper {
+    width: 100%;
+  }
+}
+
+.nav-tab-btn {
+  padding: 0.6rem 1.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+@media screen and (max-width: 768px) {
+  .nav-tab-btn {
+    flex: 1;
+    padding: 0.55rem 0.5rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* POS Layout */
+.pos-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+@media screen and (max-width: 768px) {
+  .pos-columns {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+}
+
+.pos-col {
+  flex: 1 1 320px;
+  min-width: 0;
+  width: 100%;
+}
+
+@media screen and (max-width: 768px) {
+  .pos-col {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+/* Payment Methods Selector */
+.payment-methods-selector {
+  display: flex;
+  background: #eee;
+  border-radius: 8px;
+  padding: 0.25rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+@media screen and (max-width: 600px) {
+  .payment-methods-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+  }
+}
+
+/* Cart Item List */
+.cart-item-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ddd;
+  flex-wrap: wrap;
+}
+
+@media screen and (max-width: 600px) {
+  .cart-item-row {
+    padding: 0.65rem 0;
+    gap: 0.4rem;
+  }
+  .cart-item-row .item-name-input {
+    width: 100% !important;
+    order: 1;
+  }
+  .cart-item-row .item-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    order: 2;
+    justify-content: space-between;
+  }
+}
+
+/* Responsive Tables */
+.table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background: #fff;
+  margin-bottom: 1rem;
+}
+
+.table-scroll-container table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+@media screen and (max-width: 768px) {
+  .table-scroll-container th,
+  .table-scroll-container td {
+    padding: 0.6rem 0.65rem !important;
+    font-size: 0.85rem !important;
+  }
+}
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 1.75rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media screen and (max-width: 768px) {
+  .modal-content {
+    padding: 1.25rem;
+    max-width: 100%;
+  }
+}

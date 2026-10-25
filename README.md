@@ -23,7 +23,8 @@ Built with Next.js and Node.js, this project takes a unique approach to the mand
 - **SEPA QR Codes:** Automatically generate and print EPC SEPA QR codes on invoices when paying via bank transfer (Überweisung) for fast, error-free customer payments.
 - **Payment Method Fees:** Configure percentage-based fees (e.g., for Stripe or credit cards) that automatically calculate and apply the correct tax rate to the invoice total.
 - **Automatic Storage & Backup:** The Git-backed database automatically creates immutable, timestamped revisions of every single transaction and pushes them to a remote backup repository without any manual intervention.
-- **OpenClaw AI Integration:** Includes a ready-to-use OpenClaw skill (`SKILL.md`), allowing your AI assistant to manage receipts, send invoices via email, and handle recurring bureaucratic reminders (like scanning the annual `Jahresbeleg`).
+- **Integrated Cashbook (Kassabuch):** Track the physical cash balance alongside RKSV receipts. Add manual deposits or withdrawals, view a 12-month diagram, and keep a clean journal of all cash movements independently from RKSV turnover.
+- **OpenClaw AI Integration:** Includes a ready-to-use OpenClaw skill (`SKILL.md`), allowing your AI assistant to manage receipts, send invoices via email, interact with the Kassabuch, and handle recurring bureaucratic reminders.
 
 ## 🏗 Architecture
 
@@ -117,6 +118,11 @@ npm run cli jahresbeleg
 - `npm run cli tagesbeleg` (Daily zero-receipt)
 - `npm run cli nullbeleg` (Generic zero-receipt)
 - `npm run cli export` (Export database to CSV)
+
+### Kassabuch Commands
+You can also interact with the manual cashbook entries (Einzahlung / Auszahlung) via the CLI:
+- `npm run cli cashbook list` (View recent cash entries)
+- `npm run cli cashbook add <type> <amount> [comment]` (e.g. `npm run cli cashbook add Einzahlung 100 "Wechselgeld"`)
 
 ### Official DEP Export (Datenerfassungsprotokoll)
 Austrian law requires an official JSON export format for the DEP in case of an audit. You can generate this using the provided export script. It reads your database, compiles the `Belege-Gruppe` structure, saves it as `dep-export.json` inside your git-backed database repository, and automatically commits/pushes the file.

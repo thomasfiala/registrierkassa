@@ -26,7 +26,7 @@ describe('RKSV Core Functionalities', () => {
   });
 
   describe('buildRksvPayload (Datenerfassungsprotokoll)', () => {
-    const mockConfig = { rksv: { kassenID: 'KASSE1' } };
+    const mockConfig = { rksv: { kassenID: 'KASSE1', certSerial: '7FEED511' } };
     const mockReceipt = {
       receiptNumber: 'B001',
       date: '2026-05-28T08:34:07Z',

@@ -5,7 +5,7 @@ import fs from 'fs';
 import os from 'os';
 // @ts-ignore
 import { prompt } from 'enquirer';
-import { getConfig, getConfigPath } from '../lib/config';
+import { getConfig, getConfigPath, saveConfig } from '../lib/config';
 import { getDbPath, readDb, commitReceipt, initDbRepo, wipeDbHistory, writeDb } from '../lib/db';
 import { generateInvoicePdf } from '../lib/pdf';
 import { encryptTurnover, buildRksvPayload, signPayloadJWS, hashJws } from '../lib/rksv';
@@ -166,8 +166,8 @@ async function setupInteractive() {
     }
 
     const finalConfig = { ...mergeConfig, ...answers };
-    fs.writeFileSync(configPath, JSON.stringify(finalConfig, null, 2));
-    console.log(`✅ Config updated at ${configPath}`);
+    saveConfig(finalConfig);
+    console.log(`✅ Config updated at ${configPath} and database repository`);
 
     console.log("Initializing database repository...");
     await initDbRepo();

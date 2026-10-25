@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import simpleGit from 'simple-git';
-import { getConfig, getConfigPath } from './config';
+import { getConfig, getConfigPath, getDbDirPath, splitConfig } from './config';
 
 export type CashEntryType = 'Einzahlung' | 'Auszahlung';
 
@@ -15,14 +15,8 @@ export interface CashEntry {
   createdAt?: string;
 }
 
-export async function getDbPath() {
-  const configPath = getConfigPath();
-  const configDir = path.dirname(configPath);
-  const config = getConfig();
-  if (path.isAbsolute(config.dbGitRepoPath)) {
-    return config.dbGitRepoPath;
-  }
-  return path.resolve(configDir, config.dbGitRepoPath);
+export async function getDbPath(): Promise<string> {
+  return getDbDirPath();
 }
 
 export async function initDbRepo() {
@@ -33,21 +27,60 @@ export async function initDbRepo() {
   const isRepo = await git.checkIsRepo();
   if (!isRepo) {
     await git.init();
-    const dbFile = path.join(dbRepo, 'db.json');
-    if (!fs.existsSync(dbFile)) {
-      let templatePath = path.join(process.cwd(), 'db.template.json');
-      if (!fs.existsSync(templatePath)) {
-          templatePath = path.join(__dirname, '../../db.template.json');
-      }
-      if (fs.existsSync(templatePath)) {
-          fs.copyFileSync(templatePath, dbFile);
-      } else {
-          fs.writeFileSync(dbFile, JSON.stringify({ receipts: [], cashEntries: [], currentTurnover: 0, lastReceiptHash: "INITIAL_HASH" }, null, 2));
-      }
+  }
+
+  const dbFile = path.join(dbRepo, 'db.json');
+  if (!fs.existsSync(dbFile)) {
+    let templatePath = path.join(process.cwd(), 'db.template.json');
+    if (!fs.existsSync(templatePath)) {
+        templatePath = path.join(__dirname, '../../db.template.json');
     }
-    await git.add('.');
-    await git.commit('Initial database setup');
-    await pushIfEnabled(git);
+    if (fs.existsSync(templatePath)) {
+        fs.copyFileSync(templatePath, dbFile);
+    } else {
+        fs.writeFileSync(dbFile, JSON.stringify({ receipts: [], cashEntries: [], currentTurnover: 0, lastReceiptHash: "INITIAL_HASH" }, null, 2));
+    }
+  }
+
+  const rootConfigPath = getConfigPath();
+  const configDir = path.dirname(rootConfigPath);
+  const rootCertPath = path.join(configDir, 'certificate.cer');
+  const dbCertPath = path.join(dbRepo, 'certificate.cer');
+  const dbConfigPath = path.join(dbRepo, 'config.json');
+
+  // Move or copy certificate.cer into db repo if present in root configDir but not in dbRepo
+  if (fs.existsSync(rootCertPath) && !fs.existsSync(dbCertPath)) {
+    try {
+      fs.copyFileSync(rootCertPath, dbCertPath);
+    } catch (err) {
+      console.error('Failed to copy certificate.cer into db repo:', err);
+    }
+  }
+
+  // Move all possible parts of config.json into db repo if db config doesn't exist yet
+  if (!fs.existsSync(dbConfigPath) && fs.existsSync(rootConfigPath)) {
+    try {
+      const rootConfig = JSON.parse(fs.readFileSync(rootConfigPath, 'utf8'));
+      const { dbConfig } = splitConfig(rootConfig);
+      fs.writeFileSync(dbConfigPath, JSON.stringify(dbConfig, null, 2), 'utf8');
+    } catch (err) {
+      console.error('Failed to copy config.json into db repo:', err);
+    }
+  }
+
+  // Stage tracked files if they exist
+  if (fs.existsSync(dbFile)) await git.add('db.json');
+  if (fs.existsSync(dbConfigPath)) await git.add('config.json');
+  if (fs.existsSync(dbCertPath)) await git.add('certificate.cer');
+
+  try {
+    const status = await git.status();
+    if (status.staged.length > 0) {
+      await git.commit('chore: initialize database repository with config and cert files');
+      await pushIfEnabled(git);
+    }
+  } catch (err) {
+    // If commit fails because nothing changed or git error, proceed safely
   }
 }
 
@@ -106,6 +139,8 @@ export async function commitReceipt(receiptData: any, pdfPath: string | undefine
   
   const git = simpleGit(dbRepo);
   await git.add('db.json');
+  if (fs.existsSync(path.join(dbRepo, 'config.json'))) await git.add('config.json');
+  if (fs.existsSync(path.join(dbRepo, 'certificate.cer'))) await git.add('certificate.cer');
   if (pdfPath && fs.existsSync(pdfPath)) await git.add(pdfPath);
   
   await git.commit(`Receipt ${receiptData.receiptNumber}${receiptData.type === 'proforma' ? ' (Proforma)' : ''}`);

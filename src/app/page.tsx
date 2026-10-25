@@ -717,17 +717,16 @@ export default function Home() {
     : cashCalculations.monthlyStats[cashCalculations.monthlyStats.length - 1];
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto', color: '#333' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eaeaea', paddingBottom: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <h1 style={{ fontSize: '2.4rem', margin: 0, fontWeight: 700, color: '#1a202c' }}>{appHeader}</h1>
+    <main className="app-container">
+      <div className="app-header">
+        <h1 className="app-title">{appHeader}</h1>
         
         {/* Navigation Tabs */}
-        <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.3rem', borderRadius: '10px', gap: '0.3rem' }}>
+        <div className="nav-tabs-wrapper">
           <button
             onClick={() => setActiveTab('pos')}
+            className="nav-tab-btn"
             style={{
-              padding: '0.6rem 1.4rem',
-              fontSize: '1rem',
               fontWeight: 600,
               background: activeTab === 'pos' ? '#ffffff' : 'transparent',
               color: activeTab === 'pos' ? '#0070f3' : '#64748b',
@@ -742,20 +741,12 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveTab('kassabuch')}
+            className="nav-tab-btn"
             style={{
-              padding: '0.6rem 1.4rem',
-              fontSize: '1rem',
               fontWeight: 600,
               background: activeTab === 'kassabuch' ? '#ffffff' : 'transparent',
               color: activeTab === 'kassabuch' ? '#0070f3' : '#64748b',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.6rem',
-              boxShadow: activeTab === 'kassabuch' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.15s ease'
+              boxShadow: activeTab === 'kassabuch' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
             }}
           >
             Kassabuch
@@ -775,8 +766,8 @@ export default function Home() {
 
       {activeTab === 'pos' && (
         <div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginTop: '1rem' }}>
-        <div style={{ flex: '1 1 350px' }}>
+          <div className="pos-columns">
+        <div className="pos-col">
           <h3 style={{ borderBottom: '1px solid #ccc', paddingBottom: '0.5rem' }}>Vorlagen</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
             {templates.map((tpl, i) => (
@@ -811,7 +802,7 @@ export default function Home() {
             <input type="email" placeholder="Kunden E-Mail" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} style={{ width: '100%', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px' }} />
             <textarea placeholder="Eigene Nachricht (unter Tabelle)" value={customMessage} onChange={e => setCustomMessage(e.target.value)} style={{ width: '100%', height: '60px', padding: '0.5rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px' }} />
           </div>
-          <div style={{ display: 'flex', background: '#eee', borderRadius: '8px', padding: '0.25rem', marginBottom: '1rem' }}>
+          <div className="payment-methods-selector">
             {paymentMethodsData.map(method => (
               <label 
                 key={method.name} 
@@ -840,23 +831,25 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{ flex: '1 1 350px', background: '#f9f9f9', padding: '1.5rem', borderRadius: '8px', border: '1px solid #ddd' }}>
+        <div className="pos-col" style={{ background: '#f9f9f9', padding: '1.25rem', borderRadius: '8px', border: '1px solid #ddd' }}>
           <h3 style={{ borderBottom: '1px solid #ccc', paddingBottom: '0.5rem', marginTop: 0 }}>Aktueller Warenkorb</h3>
           {items.length === 0 ? <p style={{ color: '#777', fontStyle: 'italic', marginTop: '1rem' }}>Leer</p> : (
             <ul style={{ listStyle: 'none', padding: 0, marginTop: '1rem' }}>
               {items.map(item => (
-                <li key={item.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #ddd' }}>
-                  <input type="number" value={item.quantity} onChange={e => updateItemQty(item.id, parseFloat(e.target.value))} style={{ width: '50px', padding: '0.25rem', border: '1px solid #ccc', borderRadius: '4px' }} />
-                  <input type="text" value={item.name} onChange={e => updateItemName(item.id, e.target.value)} style={{ flex: 1, padding: '0.25rem', border: '1px solid #ccc', borderRadius: '4px' }} />
-                  <input type="number" step="0.01" value={item.price} onChange={e => updateItemPrice(item.id, parseFloat(e.target.value))} style={{ width: '80px', padding: '0.25rem', border: '1px solid #ccc', borderRadius: '4px' }} />
-                  <select value={item.taxRate} onChange={e => updateItemTax(item.id, e.target.value)} style={{ padding: '0.25rem', border: '1px solid #ccc', borderRadius: '4px' }}>
-                    <option value="20%">20%</option>
-                    <option value="13%">13%</option>
-                    <option value="10%">10%</option>
-                    <option value="0%">0%</option>
-                  </select>
-                  <span style={{ width: '80px', textAlign: 'right', fontWeight: 'bold' }}>€ {(item.quantity * item.price).toFixed(2)}</span>
-                  <button onClick={() => removeItem(item.id)} style={{ color: '#d9534f', cursor: 'pointer', border: 'none', background: 'none', marginLeft: '0.5rem', fontWeight: 'bold' }} title="Entfernen">X</button>
+                <li key={item.id} className="cart-item-row">
+                  <input type="text" className="item-name-input" placeholder="Artikel" value={item.name} onChange={e => updateItemName(item.id, e.target.value)} style={{ flex: '2 1 140px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} />
+                  <div className="item-controls">
+                    <input type="number" value={item.quantity} onChange={e => updateItemQty(item.id, parseFloat(e.target.value))} style={{ width: '55px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} />
+                    <input type="number" step="0.01" value={item.price} onChange={e => updateItemPrice(item.id, parseFloat(e.target.value))} style={{ width: '75px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} />
+                    <select value={item.taxRate} onChange={e => updateItemTax(item.id, e.target.value)} style={{ padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }}>
+                      <option value="20%">20%</option>
+                      <option value="13%">13%</option>
+                      <option value="10%">10%</option>
+                      <option value="0%">0%</option>
+                    </select>
+                    <span style={{ minWidth: '70px', textAlign: 'right', fontWeight: 'bold' }}>€ {(item.quantity * item.price).toFixed(2)}</span>
+                    <button onClick={() => removeItem(item.id)} style={{ color: '#d9534f', cursor: 'pointer', border: 'none', background: 'none', marginLeft: '0.25rem', fontWeight: 'bold', fontSize: '1.1rem', padding: '0.2rem 0.4rem' }} title="Entfernen">✕</button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -958,7 +951,8 @@ export default function Home() {
             <a href="/api/export" target="_blank" rel="noreferrer" style={{ padding: '0.5rem 1rem', background: '#10b981', color: 'white', textDecoration: 'none', borderRadius: '4px', fontWeight: 'bold' }}>CSV Export</a>
         </div>
         <input type="text" placeholder="Belege durchsuchen..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #ccc', borderRadius: '4px' }} />
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
+        <div className="table-scroll-container">
+        <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', textAlign: 'left', background: '#fff', overflow: 'hidden' }}>
           <thead>
             <tr style={{ background: '#f4f4f4', borderBottom: '2px solid #ddd' }}>
               <th style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => { setSortField('receiptNumber'); setSortDesc(!sortDesc) }}>Nummer {sortField === 'receiptNumber' ? (sortDesc ? '↓' : '↑') : ''}</th>
@@ -991,6 +985,7 @@ export default function Home() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )}
@@ -1055,7 +1050,7 @@ export default function Home() {
           </div>
 
           {activeStat && (
-            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.5rem 1rem', display: 'flex', gap: '1.5rem', fontSize: '0.875rem' }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.6rem 0.85rem', display: 'flex', gap: '0.6rem 1.25rem', fontSize: '0.875rem', flexWrap: 'wrap' }}>
               <div>
                 <span style={{ color: '#64748b' }}>Monat: </span>
                 <strong style={{ color: '#0f172a' }}>{activeStat.fullLabel}</strong>
@@ -1404,7 +1399,8 @@ export default function Home() {
           </div>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', borderRadius: '8px', overflow: 'hidden' }}>
+        <div className="table-scroll-container">
+        <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left', borderRadius: '8px', overflow: 'hidden' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontSize: '0.875rem' }}>
               <th style={{ padding: '0.75rem 1rem' }}>Datum</th>
@@ -1511,6 +1507,7 @@ export default function Home() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )}

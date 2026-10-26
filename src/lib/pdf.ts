@@ -98,24 +98,35 @@ export async function generateInvoicePdf(receiptData: any, outputPath: string) {
       let currentRightY = summaryY;
 
       if (hasDeposit) {
-        doc.fontSize(10).text(`Gesamtsumme: € ${subtotalBeforeDeposit.toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
-        currentRightY += 15;
-        doc.text(`abzgl. ${depositName}: -€ ${Math.abs(Number(receiptData.depositAmount)).toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
+        doc.fontSize(14).text(`Gesamtsumme: € ${subtotalBeforeDeposit.toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
+        currentRightY += 18;
+
+        doc.fontSize(10);
+        Object.keys(taxes).forEach(rate => {
+          if (taxes[rate] > 0) {
+            doc.text(`darin enthalten ${rate} USt: € ${taxes[rate].toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
+            currentRightY += 15;
+          }
+        });
+
+        doc.fontSize(10).text(`abzgl. ${depositName}: -€ ${Math.abs(Number(receiptData.depositAmount)).toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
         currentRightY += 16;
         doc.fontSize(14).text(`Restbetrag: € ${receiptData.totalAmount.toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
         currentRightY += 18;
       } else {
         doc.fontSize(14).text(`Gesamtbetrag: € ${receiptData.totalAmount.toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
         currentRightY += 18;
-      }
-      
-      doc.fontSize(10);
-      Object.keys(taxes).forEach(rate => {
+
+        doc.fontSize(10);
+        Object.keys(taxes).forEach(rate => {
           if (taxes[rate] > 0) {
-              doc.text(`darin enthalten ${rate} USt: € ${taxes[rate].toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
-              currentRightY += 15;
+            doc.text(`darin enthalten ${rate} USt: € ${taxes[rate].toFixed(2).replace('.', ',')}`, 50, currentRightY, { align: 'right', width: contentWidth });
+            currentRightY += 15;
           }
-      });
+        });
+      }
+
+      doc.fontSize(10);
       
       doc.y = Math.max(summaryY + sepaHeight, currentRightY);
       doc.moveDown(1);
